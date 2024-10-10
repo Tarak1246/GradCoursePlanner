@@ -36,3 +36,20 @@
     transform: rotate(360deg);
   }
 }
+
+.header {
+    display: flex;
+    flex-direction: column;
+    background: #026937;
+    color: #fff;
+    height: 15vh;
+}
+
+.footer {
+    display: flex;
+    flex-direction: column;
+    background: #026937;
+    color: #fff;
+    height: 30vh;
+    align-items: center;
+}
