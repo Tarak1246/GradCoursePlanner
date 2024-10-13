@@ -1,30 +1,24 @@
-import React, { useEffect } from 'react';
-import './App.css';
-import { LoginSignup } from './Components/LoginSignup/LoginSignup';
-import header_logo from './Components/Assets/images/wright-header.png';
-import footer_logo from './Components/Assets/images/wright-footer.png';
-
+import React from "react";
+import "./App.css";
+import { LoginSignup } from "./Components/LoginSignup/LoginSignup";
+import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import AreaOfInterest from "./Components/AreaOfInterest/AreaOfInterest";
+import Header from "./Components/HeaderAndFooter/Header";
+import Footer from "./Components/HeaderAndFooter/Footer";
 
 const App = () => {
-
-  useEffect(() => {
-    
-  }, []);
-
   return (
     <div className="App">
-      {/* implement all routes here using react router */}
-          <div className="header" role="banner">
-              <div className="header-img">
-                  <img src={header_logo} alt="Wright State University" width="400" height="50"></img>
-              </div>
-          </div>
-          <LoginSignup />
-          <div className="footer">
-              <div className="foottext">
-                  <img src={footer_logo} alt="Wright State University" width="400" height="150"></img>
-              </div>
-          </div>
+      <Header />
+      <Router>
+        <Routes>
+          <Route path="/area-of-interest" element={<AreaOfInterest />} />
+        </Routes>
+        <Routes>
+          <Route path="/" element={<LoginSignup />} />
+        </Routes>
+      </Router>
+      <Footer />
     </div>
   );
 };
