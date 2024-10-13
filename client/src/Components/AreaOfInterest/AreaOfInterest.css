@@ -1,0 +1,83 @@
+.area-of-interest-container {
+  font-family: "Arial", sans-serif;
+  padding: 30px;
+  background-color: #f7f7f7; /* Light gray background */
+  text-align: center;
+}
+
+h1 {
+  font-size: 32px;
+  color: #00693e;
+  margin-bottom: 20px;
+}
+
+.filter {
+  margin-bottom: 35px;
+}
+
+.filter select {
+  padding: 10px 20px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  color: #333;
+  cursor: pointer;
+  width: 26%;
+}
+
+.interest-areas {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 44px;
+}
+
+/* Card Styles */
+.area-card {
+  background: #f2f1eb;
+  color: #00693e;
+  padding: 20px;
+  width: 285px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+  cursor: pointer;
+}
+
+.area-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.icon-container {
+  font-size: 36px;
+  margin-bottom: 10px;
+  color: #00693e;
+}
+
+.area-card h2 {
+  font-size: 22px;
+  margin: 10px 0;
+}
+
+.area-card ul {
+  list-style: none;
+  padding: 0;
+}
+
+.area-card ul li {
+  font-size: 16px;
+  padding: 10px 0;
+}
+
+.area-card ul li:last-child {
+  border-bottom: none;
+}
+
+@media (max-width: 768px) {
+  .area-card {
+    width: 100%;
+    max-width: 400px;
+  }
+}

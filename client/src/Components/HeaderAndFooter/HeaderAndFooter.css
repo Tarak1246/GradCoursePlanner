@@ -1,0 +1,36 @@
+/* Header Styling */
+.wsu-header {
+  background-color: #00693e;
+  color: white;
+  padding: 10px 0;
+}
+
+.wsu-header-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.wsu-logo img {
+  height: 50px;
+}
+
+/* Footer Styling */
+.wsu-footer {
+  background-color: #00693e;
+  color: white;
+  padding: 15px 0;
+  width: 100%;
+  text-align: center;
+}
+
+.wsu-footer-container {
+  display: flex;
+  justify-content: center;
+  padding: 0 20px;
+}
+
+.footer-logo img {
+  height: 120px;
+}
