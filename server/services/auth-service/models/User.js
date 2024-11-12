@@ -16,8 +16,8 @@ const userSchema = new mongoose.Schema({
         }
     },
     passwordHash: { type: String, required: true },
-    role: { type: String, enum: ['student', 'admin'], default: 'student' },
-    programOfStudy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Program' }], // References to Program documents
+    role: { type: String, enum: ['student', 'admin'], default: 'student',required: true },
+    programOfStudy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ProgramOfStudy' }], // References to Program documents
     coursesTaken: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],   // References to Course documents
 }, { timestamps: true });
 

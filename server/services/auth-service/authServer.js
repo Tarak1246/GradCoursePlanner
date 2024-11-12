@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const authRoutes = require('./routes/authRoutes');
+const courseRoutes = require('./routes/courseRoutes');
 const errorHandler = require('./middlewares/errorHandler');
 const logger = require('./utils/logger');
 require('dotenv').config();
@@ -22,8 +23,11 @@ app.get('/', async (req, res) => {
       res.status(500).json({ message: 'Server error' });
     }
   });
-app.use('/api/auth', authRoutes);
 
+//signup and signin routes
+app.use('/api/auth', authRoutes);
+// Register course management routes
+app.use('/api/courses', courseRoutes);
 // Error handling middleware
 app.use(errorHandler);
 // Middleware to handle 404 errors
@@ -33,13 +37,14 @@ app.use((req, res, next) => {
         path: req.originalUrl
     });
 });
-// Middleware to handle 404 errors
-app.use((req, res, next) => {
-    res.status(404).json({
-        message: 'The requested resource was not found',
-        path: req.originalUrl
-    });
+app.use((err, req, res, next) => {
+  if (err.name === 'UnauthorizedError') {
+      res.status(401).json({ message: 'Invalid or missing token.' });
+  } else {
+      next(err);
+  }
 });
+
 
 // Global error handling
 process.on("unhandledRejection", (reason, promise) => {
