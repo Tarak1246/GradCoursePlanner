@@ -56,8 +56,6 @@ exports.signup = async (req, res) => {
     }
 };
 
-
-
 // Signin
 exports.signin = async (req, res) => {
     try {
@@ -87,3 +85,35 @@ exports.signin = async (req, res) => {
     }
 };
 
+//registerAdmin
+exports.registerAdmin = async (req, res) => {
+    try {
+        const { name, email, password, adminKey } = req.body;
+
+        // Verify admin key
+        if (adminKey !== process.env.ADMIN_KEY) {
+            return res.status(403).json({ message: 'Invalid admin key. Access denied.' });
+        }
+
+        // Check if user already exists
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(409).json({ message: 'Email already exists' });
+        }
+
+        // Create admin user
+        const newAdmin = new User({
+            name,
+            email,
+            passwordHash: password, // Password will be hashed automatically in the model
+            role: 'admin', // Set role as 'admin'
+        });
+
+        await newAdmin.save();
+        logger.info(`Admin user ${email} registered successfully`);
+        res.status(201).json({ message: 'Admin registered successfully' });
+    } catch (error) {
+        logger.error('Register admin error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};

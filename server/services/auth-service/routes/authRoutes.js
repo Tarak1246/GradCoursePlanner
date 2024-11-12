@@ -1,7 +1,7 @@
 const express = require('express');
 const passport = require('passport');
 const rateLimit = require('express-rate-limit');
-const { signup, signin } = require('../controllers/authController');
+const { signup, signin, registerAdmin } = require('../controllers/authController');
 const router = express.Router();
 // Configure rate limiter
 const signinLimiter = rateLimit({
@@ -27,5 +27,8 @@ router.post('/signin', signinLimiter, (req, res, next) => {
         next();
     })(req, res, next);
 }, signin);
+//register admin route
+router.post('/register-admin', registerAdmin);
+
 
 module.exports = router;
