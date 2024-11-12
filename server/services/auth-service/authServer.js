@@ -9,6 +9,8 @@ require('./config/passport');
 
 const app = express();
 app.use(express.json());
+const fileUpload = require('express-fileupload');
+app.use(fileUpload());
 
 // Database connection
 mongoose.connect(process.env.MONGO_URI)

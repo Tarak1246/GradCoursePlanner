@@ -1,14 +1,11 @@
 const express = require('express');
 const passport = require('passport');
-const { addCourse, modifyCourse } = require('../controllers/courseController.js');
-const { verifyAdmin } = require('../middlewares/verifyAdmin.js');
+const { addOrModifyCourses } = require('../controllers/courseController');
+const { verifyAdmin } = require('../middlewares/verifyAdmin');
 
 const router = express.Router();
 
-// Add a new course
-router.post('/add', passport.authenticate('jwt', { session: false }), verifyAdmin, addCourse);
-
-// Modify an existing course
-router.put('/modify/:id', passport.authenticate('jwt', { session: false }), verifyAdmin, modifyCourse);
+// Add or Modify Courses in Bulk
+router.post('/bulk', passport.authenticate('jwt', { session: false }), verifyAdmin, addOrModifyCourses);
 
 module.exports = router;
