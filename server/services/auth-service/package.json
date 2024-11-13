@@ -22,7 +22,7 @@
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
     "validator": "^13.12.0",
-    "winston": "^3.16.0",
+    "winston": "^3.17.0",
     "xlsx": "^0.18.5"
   }
 }
