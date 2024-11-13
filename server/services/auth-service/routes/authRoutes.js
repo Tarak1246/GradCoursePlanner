@@ -1,18 +1,12 @@
 const express = require('express');
 const passport = require('passport');
-const rateLimit = require('express-rate-limit');
 const { signup, signin, registerAdmin } = require('../controllers/authController');
 const router = express.Router();
-// Configure rate limiter
-const signinLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // Limit each IP to 5 requests per windowMs
-    message: { message: 'Too many login attempts, please try again after 15 minutes' }
-});
+const rateLimiter =  require('../middlewares/rateLimiter');
 // Signup Route
-router.post('/signup', signup);
+router.post('/signup', rateLimiter, signup);
 // Signin Route
-router.post('/signin', signinLimiter, (req, res, next) => {
+router.post('/signin', rateLimiter, (req, res, next) => {
     passport.authenticate('local', { session: false }, (err, user, info) => {
         if (err) {
             logger.error('Authentication error:', err);
@@ -28,7 +22,7 @@ router.post('/signin', signinLimiter, (req, res, next) => {
     })(req, res, next);
 }, signin);
 //register admin route
-router.post('/register-admin', registerAdmin);
+router.post('/register-admin', rateLimiter, registerAdmin);
 
 
 module.exports = router;
