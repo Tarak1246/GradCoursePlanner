@@ -31,9 +31,9 @@ exports.addOrModifyCourses = async (req, res) => {
                 // Ensure all values are strings
                 const stringifiedRow = {};
                 Object.keys(row).forEach((key) => {
-                    if (key === "prerequisites" || key === "certificationRequirements") {
+                    if (key === "prerequisites" || key === "certificationRequirements" || key==="category") {
                         try {
-                            stringifiedRow[key] = JSON.parse(row[key] || "[]");
+                            stringifiedRow[key] = row[key] ? JSON.parse(row[key] || "[]") : "[]";
                         } catch {
                             stringifiedRow[key] = [];
                         }
