@@ -15,7 +15,7 @@ const courseSchema = new mongoose.Schema({
     days: { type: String, required: true }, // Days (e.g., MW)
     time: { type: String, required: true }, // Time (e.g., 04:40 pm-06:00 pm)
     prerequisites: [{ type: String }], // List of course numbers as prerequisites
-    category: { type: String, enum: ["Web Development", "AI", "Big Data", "Cybersecurity"], required: true }, // Course category
+    category: [{ type: String, enum: ["Web Development", "AI", "Big Data", "Cybersecurity"], required: true }], // Course category
     certificationRequirements: [{ type: String, enum: ["AI Certification", "Big Data", "Cybersecurity"] }], // Certification requirements
     sectionCapacity: { type: String, required: true }, // Total capacity
     sectionActual: { type: String, required: true }, // Enrolled students

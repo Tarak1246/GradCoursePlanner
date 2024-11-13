@@ -46,7 +46,7 @@ const courseValidationSchema = Joi.object({
     prerequisites: Joi.array().items(Joi.string()).optional().messages({
         "string.base": "Each prerequisite must be a string."
     }),
-    category: Joi.string().valid("Web Development", "AI", "Big Data", "Cybersecurity").required().messages({
+    category: Joi.array().items(Joi.string().valid("Web Development", "AI", "Big Data", "Cybersecurity")).required().messages({
         "any.only": "Category must be one of Web Development, AI, Big Data, or Cybersecurity.",
         "any.required": "Category is required."
     }),
