@@ -1,6 +1,6 @@
-const User = require('../models/User');
+const User = require('../../../common/models/User');
 const jwt = require('jsonwebtoken');
-const logger = require('../utils/logger');
+const logger = require('../../../common/utils/logger');
 const validator = require('validator');
 require('dotenv').config();
 
@@ -8,7 +8,7 @@ require('dotenv').config();
 exports.signup = async (req, res) => {
     try {
         const { name, email, password, role } = req.body;
-        
+
         // Check if the email ends with "@wright.edu"
         const emailRegex = /^[a-zA-Z0-9._%+-]+@wright\.edu$/;
         if (!emailRegex.test(email)) {
@@ -17,10 +17,15 @@ exports.signup = async (req, res) => {
         }
 
         // Validate password strength
-        if (!validator.isStrongPassword(password, { minLength: 8, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 1 })) {
-            return res.status(400).json({ message: 'Password must be at least 8 characters long and include uppercase letters, lowercase letters, numbers, and symbols' });
+        if (!validator.isStrongPassword(password, {
+            minLength: 8, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 1
+        })) {
+            logger.warn(`Signup failed - Weak password provided by ${email}`);
+            return res.status(400).json({
+                message: 'Password must be at least 8 characters long and include uppercase letters, lowercase letters, numbers, and symbols'
+            });
         }
-        
+
         // Check if user already exists
         const existingUser = await User.findOne({ email });
         if (existingUser) {
@@ -33,7 +38,7 @@ exports.signup = async (req, res) => {
             name,
             email,
             passwordHash: password, // Will be hashed automatically
-            role,
+            role: role || 'student', // Default role is 'student'
             programOfStudy: [],
             coursesTaken: []
         });
@@ -85,19 +90,21 @@ exports.signin = async (req, res) => {
     }
 };
 
-//registerAdmin
+// Register Admin
 exports.registerAdmin = async (req, res) => {
     try {
         const { name, email, password, adminKey } = req.body;
 
         // Verify admin key
         if (adminKey !== process.env.ADMIN_KEY) {
+            logger.warn(`Register admin failed - Invalid admin key provided for email: ${email}`);
             return res.status(403).json({ message: 'Invalid admin key. Access denied.' });
         }
 
         // Check if user already exists
         const existingUser = await User.findOne({ email });
         if (existingUser) {
+            logger.warn(`Register admin failed - Email ${email} already exists`);
             return res.status(409).json({ message: 'Email already exists' });
         }
 
@@ -113,6 +120,14 @@ exports.registerAdmin = async (req, res) => {
         logger.info(`Admin user ${email} registered successfully`);
         res.status(201).json({ message: 'Admin registered successfully' });
     } catch (error) {
+        if (error.name === 'ValidationError') {
+            const errorMessage = Object.values(error.errors)
+                .map(err => err.message)
+                .join(', ');
+            logger.error(`Validation error during admin registration: ${errorMessage}`);
+            return res.status(400).json({ message: errorMessage });
+        }
+
         logger.error('Register admin error:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
