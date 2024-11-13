@@ -1,17 +1,29 @@
 const xlsx = require("xlsx");
-const Course = require("../models/Course");
+const Course = require("../../../common/models/Course");
 const { courseValidationSchema } = require("../validators/courseValidator");
-const logger = require("../utils/logger");
+const logger = require("../../../common/utils/logger");
 
 exports.addOrModifyCourses = async (req, res) => {
     try {
         // Check if a file is provided
         if (!req.files || !req.files.file) {
-            logger.warn("No file uploaded in request");
+            logger.warn("No file uploaded in the request");
             return res.status(400).json({ message: "No file uploaded" });
         }
 
+        // Ensure only one file is uploaded
+        if (Object.keys(req.files).length > 1) {
+            logger.warn("Multiple files uploaded in the request");
+            return res.status(400).json({ message: "Only one file is allowed. Please upload a single Excel file." });
+        }
+        
         const file = req.files.file;
+
+        // Validate the file type (ensure it's an Excel file)
+        if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+            logger.warn(`Invalid file type uploaded: ${file.name}`);
+            return res.status(400).json({ message: "Invalid file type. Only Excel files are supported." });
+        }
 
         // Read the Excel file
         const workbook = xlsx.read(file.data, { type: "buffer" });
@@ -22,26 +34,39 @@ exports.addOrModifyCourses = async (req, res) => {
             return res.status(400).json({ message: "The Excel file contains no sheets" });
         }
 
+        const requiredColumns = [
+            "crn", "subject", "course", "section", "campus", "semester", "year",
+            "level", "title", "credits", "days", "time", "prerequisites", "category",
+            "certificationRequirements", "sectionCapacity", "sectionActual", "sectionRemaining",
+            "waitlistCapacity", "waitlistActual", "waitlistRemaining", "crosslistCapacity",
+            "crosslistActual", "crosslistRemaining", "instructor", "duration",
+            "location", "attribute", "restrictions", "status",
+        ];
+
         let allData = [];
 
         // Process all sheets
         sheets.forEach((sheetName) => {
             const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+
             sheetData.forEach((row) => {
-                // Ensure all values are strings
-                const stringifiedRow = {};
+                // Only keep required columns and filter out extra columns
+                const filteredRow = {};
                 Object.keys(row).forEach((key) => {
-                    if (key === "prerequisites" || key === "certificationRequirements" || key==="category") {
-                        try {
-                            stringifiedRow[key] = row[key] ? JSON.parse(row[key] || "[]") : "[]";
-                        } catch {
-                            stringifiedRow[key] = [];
+                    if (requiredColumns.includes(key)) {
+                        // Handle arrays for specific fields
+                        if (["prerequisites", "certificationRequirements", "category"].includes(key)) {
+                            try {
+                                filteredRow[key] = row[key] ? JSON.parse(row[key]) : [];
+                            } catch {
+                                filteredRow[key] = [];
+                            }
+                        } else {
+                            filteredRow[key] = row[key]?.toString().trim();
                         }
-                    } else {
-                        stringifiedRow[key] = row[key]?.toString().trim();
                     }
                 });
-                allData.push(stringifiedRow);
+                allData.push(filteredRow);
             });
         });
 
@@ -68,7 +93,7 @@ exports.addOrModifyCourses = async (req, res) => {
         });
 
         if (errors.length > 0) {
-            logger.warn("Validation errors in uploaded Excel file", { errors });
+            logger.warn(`Validation errors in uploaded Excel file: ${errors.length} rows affected`);
             return res.status(400).json({ message: "Validation errors", errors });
         }
 
@@ -88,7 +113,7 @@ exports.addOrModifyCourses = async (req, res) => {
             message: `${validCourses.length} courses added/modified successfully`,
         });
     } catch (error) {
-        logger.error("Error processing Excel file", error);
+        logger.error("Error processing Excel file", { error: error.message });
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };
