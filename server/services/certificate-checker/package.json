@@ -1,0 +1,11 @@
+{
+  "name": "certificate-checker",
+  "version": "1.0.0",
+  "description": "certificate-checker service",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Codecrafters",
+  "license": "ISC"
+}
