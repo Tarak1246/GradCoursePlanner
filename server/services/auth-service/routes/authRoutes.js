@@ -1,13 +1,12 @@
 const express = require('express');
-const passport = require('passport');
-const logger = require('../../../common/utils/logger');
+const passport = require('../../../api-gateway/common/config/passport');
+const logger = require('../../../api-gateway/common/utils/logger');
 const { signup, signin, registerAdmin } = require('../controllers/authController');
-const {loginRateLimiter} = require('../middlewares/rateLimiter');
-
+const {loginRateLimiter} = require('../../../api-gateway/common/middleware/rateLimiter');
 const router = express.Router();
 
-// Signup Route
-router.post('/signup', async (req, res, next) => {
+router.post('/signup', loginRateLimiter, async (req, res, next) => {
+    console.log("called");
     try {
         logger.info('Signup endpoint hit');
         await signup(req, res, next);
@@ -17,7 +16,6 @@ router.post('/signup', async (req, res, next) => {
     }
 });
 
-// Signin Route
 router.post('/signin', loginRateLimiter, (req, res, next) => {
     passport.authenticate('local', { session: false }, (err, user, info) => {
         if (err) {
@@ -31,7 +29,7 @@ router.post('/signin', loginRateLimiter, (req, res, next) => {
         }
 
         logger.info(`User authenticated: ${user.email}`);
-        req.user = user;
+        req.user = user; // Attach user to request
         next();
     })(req, res, next);
 }, async (req, res, next) => {

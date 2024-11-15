@@ -1,6 +1,6 @@
-const User = require('../../../common/models/User');
+const User = require('../../../api-gateway/common/models/User');
 const jwt = require('jsonwebtoken');
-const logger = require('../../../common/utils/logger');
+const logger = require('../../../api-gateway/common/utils/logger');
 const validator = require('validator');
 require('dotenv').config();
 

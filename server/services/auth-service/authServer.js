@@ -1,39 +1,25 @@
 const express = require('express');
+const passport = require('../../api-gateway/common/config/passport');
 const authRoutes = require('./routes/authRoutes');
-const courseRoutes = require('./routes/courseRoutes');
-const errorHandler = require('./middlewares/errorHandler');
-const logger = require('../../common/utils/logger');
-const connectDB = require('../../common/config/db');
+const errorHandler = require('../../api-gateway/common/middleware/errorHandler');
+const logger = require('../../api-gateway/common/utils/logger');
+const connectDB = require('../../api-gateway/common/config/db');
+const fileUpload = require('express-fileupload');
+const cors = require('cors');
 require('dotenv').config();
-require('./config/passport');
 
 const app = express();
 app.use(express.json());
-const fileUpload = require('express-fileupload');
 app.use(fileUpload());
+app.use(passport.initialize());
+app.use(cors({
+    origin: ['http://localhost:4000'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true,
+}));
 
-// Initialize shared DB connection
-connectDB()
-
-// Routes
-app.get('/', async (req, res) => {
-    try {
-        res.send('Auth service is running...');
-        logger.info('Root endpoint accessed successfully');
-    } catch (error) {
-        logger.error(`Error accessing root endpoint: ${error.message}`);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// Authentication routes
-app.use('/api/auth', authRoutes);
-
-// Course management routes
-app.use('/api/courses', courseRoutes);
-
-// Error handling middleware
-app.use(errorHandler);
+connectDB(process.env.MONGO_URI);
+app.use('/', authRoutes);
 
 // Middleware to handle 404 errors
 app.use((req, res) => {
@@ -44,15 +30,8 @@ app.use((req, res) => {
     });
 });
 
-// Middleware to handle unauthorized errors
-app.use((err, req, res, next) => {
-    if (err.name === 'UnauthorizedError') {
-        logger.warn('401 Unauthorized - Invalid or missing token');
-        res.status(401).json({ message: 'Invalid or missing token.' });
-    } else {
-        next(err);
-    }
-});
+// Error handling middleware
+app.use(errorHandler);
 
 // Global error handling
 process.on('unhandledRejection', (reason, promise) => {
@@ -61,10 +40,11 @@ process.on('unhandledRejection', (reason, promise) => {
 
 process.on('uncaughtException', (error) => {
     logger.error(`Uncaught Exception: ${error.message}`);
-    process.exit(1); // Exit the process to prevent it from running indefinitely
+    process.exit(1);
 });
 
-// Start the server
+
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     logger.info(`Auth Service running on port ${PORT}`);
