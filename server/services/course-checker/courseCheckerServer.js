@@ -27,9 +27,25 @@ app.use(errorHandler);
 // Attach Routes
 app.use("/", courseRoutes);
 
+
+// Global JWT Authentication Middleware
 app.use((req, res, next) => {
   console.log(`[Request Received] Method: ${req.method}, URL: ${req.url}`);
-  next();
+  if (
+    req.path === "/healthcheck" || // Exclude healthcheck or public routes
+    req.path.startsWith("/public")
+  ) {
+    return next();
+  }
+
+  passport.authenticate("jwt", { session: false }, (err, user, info) => {
+    if (err || !user) {
+      logger.warn(`Unauthorized access attempt: ${info?.message || err?.message}`);
+      return res.status(401).json({ message: "Unauthorized: Invalid or missing token" });
+    }
+    req.user = user; // Attach the authenticated user to the request object
+    next();
+  })(req, res, next);
 });
 
 // Middleware to handle 404 errors
