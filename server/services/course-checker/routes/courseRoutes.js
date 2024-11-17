@@ -4,7 +4,7 @@ const {
   filterCourses,
   getCourseDetails,
   addOrModifyCourses,
-  registerCourse,
+  validateCourseSelection,
 } = require("../controllers/courseController");
 const {
   verifyAdmin,
@@ -28,6 +28,6 @@ router.get("/:courseId", getCourseDetails);
 // Route for Bulk Add or Modify Courses
 router.post("/bulk", verifyAdmin, bulkUploadRateLimiter, addOrModifyCourses);
 
-router.get("/api/course-check/:courseId", registerCourse);
+router.get("/api/course-check/:courseId", validateCourseSelection);
 
 module.exports = router;

@@ -279,9 +279,10 @@ exports.addOrModifyCourses = async (req, res) => {
 };
 
 
-exports.registerCourse = async (req, res) => {
+exports.validateCourseSelection = async (req, res) => {
   let userId;
   try {
+    // Extract user ID from the JWT token
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       logger.warn("Authorization token missing or malformed");
@@ -303,112 +304,94 @@ exports.registerCourse = async (req, res) => {
       return res.status(400).json({ message: "courseId is required" });
     }
 
-    let programOfStudy = await ProgramOfStudy.findOne({ userId });
+    // Fetch user's program of study
+    const programOfStudy = await ProgramOfStudy.findOne({ userId });
+    const plannedAndCompletedCourses = programOfStudy
+      ? programOfStudy.courses.filter((c) => c.status === "Completed" || c.status === "Planned")
+      : [];
 
-    if (!programOfStudy) {
-      programOfStudy = new ProgramOfStudy({
-        userId,
-        courses: [],
-        completionStatus: "In Progress",
-        totalCredits: 0,
-        coreCredits: 0,
-        csCredits: 0,
-        cegCredits: 0,
-        upperLevelCredits: 0,
-        lowerLevelCredits: 0,
-        independentStudyCredits: 0,
-      });
-      await programOfStudy.save();
-      logger.info(`Program of Study initialized for user ID: ${userId}`);
-    }
-
+    // Fetch selected course
     const course = await Course.findById(courseId);
     if (!course) {
       logger.warn(`Course not found with ID: ${courseId}`);
       return res.status(404).json({ message: "Course not found" });
     }
 
-    const existingCourse = programOfStudy.courses.find(
-      (c) => c.courseId.toString() === courseId
-    );
-
+    // Check if the course is already planned or completed
+    const existingCourse = plannedAndCompletedCourses.find((c) => c.courseId.toString() === courseId);
     if (existingCourse) {
-      logger.info(`Course ID: ${courseId} is already ${existingCourse.status} for user ID: ${userId}`);
-      return res.status(400).json({ message: `This course is already ${existingCourse.status}.` });
+      logger.info(`Course already planned or completed for user ID: ${userId}`);
+      return res.status(400).json({
+        isValid: false,
+        message: "This course is already planned or completed.",
+      });
     }
 
-    const completedCourses = programOfStudy.courses.filter(
-      (c) => c.status === "Completed"
-    );
+    // If no program of study exists, no validation required
+    if (!programOfStudy) {
+      logger.info(`First-time registration: Skipping validations for user ID: ${userId}`);
+      return res.status(200).json({
+        isValid: true,
+        message: "First-time registration. No validation required.",
+      });
+    }
 
-    const totalCredits = completedCourses.reduce(
-      (sum, c) => sum + c.credits,
-      0
-    );
+    // Calculate total credits (Planned + Completed)
+    const totalCredits = plannedAndCompletedCourses.reduce((sum, c) => sum + c.credits, 0);
 
-    const csCredits = completedCourses
-      .filter((c) => c.courseId.subject === "CS")
+    // If credits <= 12, no validation required
+    if (totalCredits <= 12) {
+      logger.info(`Credits <= 12: Skipping validations for user ID: ${userId}`);
+      return res.status(200).json({
+        isValid: true,
+        message: "Credits <= 12. No validation required.",
+      });
+    }
+
+    // Check CEG/6000-Level Credit Limit (<= 12 credits)
+    const ceg6000Credits = plannedAndCompletedCourses
+      .filter((c) => c.courseId.subject === "CEG" || c.courseId.course.startsWith("6"))
       .reduce((sum, c) => sum + c.credits, 0);
 
-    const coreCourses = completedCourses.filter((c) =>
+    if (ceg6000Credits + course.credits > 12) {
+      logger.info(`CEG/6000-Level credit limit exceeded for user ID: ${userId}`);
+      return res.status(400).json({
+        isValid: false,
+        message: "You cannot exceed 12 credits at the 6000 level or in CEG courses.",
+      });
+    }
+
+    // If credits >= 24, ensure core course validation
+    const coreCourses = plannedAndCompletedCourses.filter((c) =>
       ["7200", "7370", "7100", "7140"].includes(c.courseId.course)
     );
+    if (totalCredits >= 24) {
+      if (coreCourses.length === 0 && !["7200", "7370", "7100", "7140"].includes(course.course)) {
+        logger.info(`Credits >= 24: Current course must be a core course for user ID: ${userId}`);
+        return res.status(400).json({
+          isValid: false,
+          message: "Credits >= 24. You must take a core course.",
+        });
+      }
 
-    const coreCredits = coreCourses.reduce(
-      (sum, c) => sum + c.credits,
-      0
-    );
-
-    const upperLevelCredits = completedCourses
-      .filter((c) => parseInt(c.courseId.course) >= 7000)
-      .reduce((sum, c) => sum + c.credits, 0);
-
-    const lowerLevelCredits = completedCourses
-      .filter((c) => parseInt(c.courseId.course) < 7000)
-      .reduce((sum, c) => sum + c.credits, 0);
-
-    if (totalCredits >= 30) {
-      logger.info(`Total credits limit exceeded for user ID: ${userId}`);
-      return res.status(400).json({ message: "Total credit limit reached." });
+      if (coreCourses.length === 1 && totalCredits + course.credits > 27) {
+        logger.info(
+          `Credits >= 27: Only one core course completed. Current course must be a core course for user ID: ${userId}`
+        );
+        return res.status(400).json({
+          isValid: false,
+          message: "Credits >= 27. You must take another core course.",
+        });
+      }
     }
 
-    if (coreCredits < 6 && totalCredits + course.credits >= 30) {
-      logger.info(`Core courses incomplete for user ID: ${userId}`);
-      return res.status(400).json({ message: "You must complete 6 core credits." });
-    }
-
-    if (upperLevelCredits < 12 && totalCredits + course.credits > 30) {
-      logger.info(`Upper-level credits incomplete for user ID: ${userId}`);
-      return res.status(400).json({ message: "You must complete 12 upper-level credits." });
-    }
-
-    if (lowerLevelCredits >= 12) {
-      logger.info(`Lower-level credit limit exceeded for user ID: ${userId}`);
-      return res.status(400).json({ message: "You cannot exceed 12 lower-level credits." });
-    }
-
-    programOfStudy.courses.push({
-      courseId: course._id,
-      status: "Planned",
-      semesterTaken: course.semester.toLowerCase(),
-      yearTaken: course.year,
-      credits: course.credits,
-    });
-
-    programOfStudy.totalCredits += course.credits;
-    if (course.subject === "CS") programOfStudy.csCredits += course.credits;
-    if (course.subject === "CEG") programOfStudy.cegCredits += course.credits;
-
-    await programOfStudy.save();
-
-    logger.info(`Course ID: ${courseId} successfully registered for user ID: ${userId}`);
+    logger.info(`Course validated successfully for user ID: ${userId}`);
     return res.status(200).json({
-      message: "Course successfully registered with status 'Planned'.",
-      totalCredits: programOfStudy.totalCredits,
-      courses: programOfStudy.courses,
+      isValid: true,
+      message: "Course selection is valid.",
     });
   } catch (error) {
-    logger.error(`Error registering course:`, error);
+    logger.error(`Error validating course selection for user ID: ${userId || "unknown"}`, error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
