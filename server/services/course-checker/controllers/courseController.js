@@ -1,7 +1,9 @@
 const mongoose = require("mongoose");
 const Course = require("../../../api-gateway/common/models/Course");
 const logger = require("../../../api-gateway/common/utils/logger");
+const ProgramOfStudy = require("../../../api-gateway/common/models/programOfStudySchema");
 const xlsx = require("xlsx");
+const jwt = require('jsonwebtoken');
 const {
   courseValidationSchema,
 } = require("../../../api-gateway/common/validators/courseValidator");
@@ -65,14 +67,17 @@ exports.filterCourses = async (req, res) => {
     const query = {};
     if (category) query.category = { $in: category };
     if (subject) query.subject = { $in: subject };
-    if (certificationRequirements) query.certificationRequirements = { $in: certificationRequirements };
+    if (certificationRequirements)
+      query.certificationRequirements = { $in: certificationRequirements };
     if (level) query.level = { $in: level };
 
     const courses = await Course.find(query);
 
     if (courses.length === 0) {
       logger.info("No courses match the given filters");
-      return res.status(404).json({ message: "No courses match the given filters" });
+      return res
+        .status(404)
+        .json({ message: "No courses match the given filters" });
     }
 
     logger.info("Filtered courses fetched successfully");
@@ -119,12 +124,9 @@ exports.addOrModifyCourses = async (req, res) => {
     // Ensure only one file is uploaded
     if (Object.keys(req.files).length > 1) {
       logger.warn("Multiple files uploaded in the request");
-      return res
-        .status(400)
-        .json({
-          message:
-            "Only one file is allowed. Please upload a single Excel file.",
-        });
+      return res.status(400).json({
+        message: "Only one file is allowed. Please upload a single Excel file.",
+      });
     }
 
     const file = req.files.file;
@@ -132,11 +134,9 @@ exports.addOrModifyCourses = async (req, res) => {
     // Validate the file type (ensure it's an Excel file)
     if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
       logger.warn(`Invalid file type uploaded: ${file.name}`);
-      return res
-        .status(400)
-        .json({
-          message: "Invalid file type. Only Excel files are supported.",
-        });
+      return res.status(400).json({
+        message: "Invalid file type. Only Excel files are supported.",
+      });
     }
 
     // Read the Excel file
@@ -277,3 +277,139 @@ exports.addOrModifyCourses = async (req, res) => {
       .json({ message: "Internal server error", error: error.message });
   }
 };
+
+
+exports.registerCourse = async (req, res) => {
+  let userId;
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      logger.warn("Authorization token missing or malformed");
+      return res.status(401).json({ message: "Authorization token missing or malformed" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    userId = decoded.id;
+
+    if (!userId) {
+      logger.warn("User ID missing in JWT token");
+      return res.status(401).json({ message: "Invalid token: User ID missing" });
+    }
+
+    const { courseId } = req.params;
+    if (!courseId) {
+      logger.warn("Invalid request: Missing courseId");
+      return res.status(400).json({ message: "courseId is required" });
+    }
+
+    let programOfStudy = await ProgramOfStudy.findOne({ userId });
+
+    if (!programOfStudy) {
+      programOfStudy = new ProgramOfStudy({
+        userId,
+        courses: [],
+        completionStatus: "In Progress",
+        totalCredits: 0,
+        coreCredits: 0,
+        csCredits: 0,
+        cegCredits: 0,
+        upperLevelCredits: 0,
+        lowerLevelCredits: 0,
+        independentStudyCredits: 0,
+      });
+      await programOfStudy.save();
+      logger.info(`Program of Study initialized for user ID: ${userId}`);
+    }
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+      logger.warn(`Course not found with ID: ${courseId}`);
+      return res.status(404).json({ message: "Course not found" });
+    }
+
+    const existingCourse = programOfStudy.courses.find(
+      (c) => c.courseId.toString() === courseId
+    );
+
+    if (existingCourse) {
+      logger.info(`Course ID: ${courseId} is already ${existingCourse.status} for user ID: ${userId}`);
+      return res.status(400).json({ message: `This course is already ${existingCourse.status}.` });
+    }
+
+    const completedCourses = programOfStudy.courses.filter(
+      (c) => c.status === "Completed"
+    );
+
+    const totalCredits = completedCourses.reduce(
+      (sum, c) => sum + c.credits,
+      0
+    );
+
+    const csCredits = completedCourses
+      .filter((c) => c.courseId.subject === "CS")
+      .reduce((sum, c) => sum + c.credits, 0);
+
+    const coreCourses = completedCourses.filter((c) =>
+      ["7200", "7370", "7100", "7140"].includes(c.courseId.course)
+    );
+
+    const coreCredits = coreCourses.reduce(
+      (sum, c) => sum + c.credits,
+      0
+    );
+
+    const upperLevelCredits = completedCourses
+      .filter((c) => parseInt(c.courseId.course) >= 7000)
+      .reduce((sum, c) => sum + c.credits, 0);
+
+    const lowerLevelCredits = completedCourses
+      .filter((c) => parseInt(c.courseId.course) < 7000)
+      .reduce((sum, c) => sum + c.credits, 0);
+
+    if (totalCredits >= 30) {
+      logger.info(`Total credits limit exceeded for user ID: ${userId}`);
+      return res.status(400).json({ message: "Total credit limit reached." });
+    }
+
+    if (coreCredits < 6 && totalCredits + course.credits >= 30) {
+      logger.info(`Core courses incomplete for user ID: ${userId}`);
+      return res.status(400).json({ message: "You must complete 6 core credits." });
+    }
+
+    if (upperLevelCredits < 12 && totalCredits + course.credits > 30) {
+      logger.info(`Upper-level credits incomplete for user ID: ${userId}`);
+      return res.status(400).json({ message: "You must complete 12 upper-level credits." });
+    }
+
+    if (lowerLevelCredits >= 12) {
+      logger.info(`Lower-level credit limit exceeded for user ID: ${userId}`);
+      return res.status(400).json({ message: "You cannot exceed 12 lower-level credits." });
+    }
+
+    programOfStudy.courses.push({
+      courseId: course._id,
+      status: "Planned",
+      semesterTaken: course.semester.toLowerCase(),
+      yearTaken: course.year,
+      credits: course.credits,
+    });
+
+    programOfStudy.totalCredits += course.credits;
+    if (course.subject === "CS") programOfStudy.csCredits += course.credits;
+    if (course.subject === "CEG") programOfStudy.cegCredits += course.credits;
+
+    await programOfStudy.save();
+
+    logger.info(`Course ID: ${courseId} successfully registered for user ID: ${userId}`);
+    return res.status(200).json({
+      message: "Course successfully registered with status 'Planned'.",
+      totalCredits: programOfStudy.totalCredits,
+      courses: programOfStudy.courses,
+    });
+  } catch (error) {
+    logger.error(`Error registering course:`, error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+

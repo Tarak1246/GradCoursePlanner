@@ -4,9 +4,8 @@ const {
   filterCourses,
   getCourseDetails,
   addOrModifyCourses,
+  registerCourse,
 } = require("../controllers/courseController");
-const logger = require("../../../api-gateway/common/utils/logger");
-const passport = require("../../../api-gateway/common/config/passport");
 const {
   verifyAdmin,
 } = require("../../../api-gateway/common/middleware/verifyAdmin");
@@ -28,5 +27,7 @@ router.get("/:courseId", getCourseDetails);
 
 // Route for Bulk Add or Modify Courses
 router.post("/bulk", verifyAdmin, bulkUploadRateLimiter, addOrModifyCourses);
+
+router.get("/api/course-check/:courseId", registerCourse);
 
 module.exports = router;

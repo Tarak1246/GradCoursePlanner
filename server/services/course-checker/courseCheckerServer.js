@@ -27,17 +27,9 @@ app.use(errorHandler);
 // Attach Routes
 app.use("/", courseRoutes);
 
-
 // Global JWT Authentication Middleware
 app.use((req, res, next) => {
-  console.log(`[Request Received] Method: ${req.method}, URL: ${req.url}`);
-  if (
-    req.path === "/healthcheck" || // Exclude healthcheck or public routes
-    req.path.startsWith("/public")
-  ) {
-    return next();
-  }
-
+  logger.info(`[Request Received] Method: ${req.method}, URL: ${req.url}`);
   passport.authenticate("jwt", { session: false }, (err, user, info) => {
     if (err || !user) {
       logger.warn(`Unauthorized access attempt: ${info?.message || err?.message}`);

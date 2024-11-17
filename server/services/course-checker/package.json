@@ -15,11 +15,11 @@
     "express": "^4.21.1",
     "express-fileupload": "^1.5.1",
     "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.8.0",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "xlsx": "^0.18.5"
   },
-  "devDependencies": {},
   "description": ""
 }
