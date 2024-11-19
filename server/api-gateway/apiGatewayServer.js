@@ -10,13 +10,14 @@ const logger = require("./common/utils/logger");
 const connectDB = require("./common/config/db");
 dotenv.config();
 const passport = require("./common/config/passport");
+const jwtAuthMiddleware = require("./common/middleware/jwtAuthMiddleware");
 
 const app = express();
 // app.use(express.json());
 app.use(cors());
 app.use(passport.initialize());
-// Connect to the database
-connectDB(process.env.MONGO_URI);
+// Use JWT middleware globally
+app.use(jwtAuthMiddleware);
 
 app.use((req, res, next) => {
   logger.info(`Incoming Request: ${req.method} ${req.url}`);
@@ -35,39 +36,61 @@ app.get("/healthcheck", async (req, res) => {
 });
 
 // Route: Aggregate Subject Details from Multiple Microservices
-app.post("/api/subject-details", async (req, res) => {
-  const { subjectId } = req.body;
-  if (!subjectId) {
+app.get("/api/subject-details/:courseId", async (req, res) => {
+  let { courseId } = req.params;
+  if (!courseId) {
     logger.warn("Subject ID not provided");
     return res.status(400).json({ message: "Subject ID is required" });
   }
 
-  logger.info(`Received request for subject details: ${subjectId}`);
+  logger.info(`Received request for subject details: ${courseId}`);
 
   try {
     // URLs of microservices
-    const prerequisiteCheckerUrl = `http://localhost:5001/api/prerequisites/${subjectId}`;
-    const courseCheckerUrl = `http://localhost:5002/api/course-check/${subjectId}`;
-    const certificateCheckerUrl = `http://localhost:5003/api/certificates/${subjectId}`;
+    const prerequisiteCheckerUrl = `http://localhost:5003/prerequisite-check/${courseId}`;
+    const courseCheckerUrl = `http://localhost:5002/course-check/${courseId}`;
+    const certificateCheckerUrl = `http://localhost:5001/certificate-check/${courseId}`;
+
+    // Headers to forward
+    const authHeaders = {
+      Authorization: req.headers.authorization, // Forward the Bearer token
+      "x-user-id": req.headers["x-user-id"],
+      "x-user-email": req.headers["x-user-email"],
+      "x-user-role": req.headers["x-user-role"],
+    };
 
     // Call microservices in parallel
     const [prerequisiteResponse, courseResponse, certificateResponse] =
-      await Promise.all([
-        axios.get(prerequisiteCheckerUrl),
-        axios.get(courseCheckerUrl),
-        axios.get(certificateCheckerUrl),
+      await Promise.allSettled([
+        axios.get(prerequisiteCheckerUrl, { headers: authHeaders }),
+        axios.get(courseCheckerUrl, { headers: authHeaders }),
+        axios.get(certificateCheckerUrl, { headers: authHeaders }),
       ]);
 
-    logger.info("Successfully fetched responses from all microservices");
-
-    // Consolidate responses
     const consolidatedResponse = {
-      prerequisites: prerequisiteResponse.data, // Data from Prerequisite Checker
-      courseCheck: courseResponse.data, // Data from Course Checker
-      certificateEligibility: certificateResponse.data, // Data from Certificate Checker
+      prerequisites:
+        prerequisiteResponse.status === "fulfilled"
+          ? prerequisiteResponse.value.data.data
+          : null,
+      courseCheck:
+        courseResponse.status === "fulfilled" ? courseResponse.value.data.data : null,
+      certificateEligibility:
+        certificateResponse.status === "fulfilled"
+          ? certificateResponse.value.data.data
+          : null,
+      errors: [
+        prerequisiteResponse.status === "rejected"
+          ? prerequisiteResponse.message
+          : null,
+        courseResponse.status === "rejected" ? courseResponse.message : null,
+        certificateResponse.status === "rejected"
+          ? certificateResponse.message
+          : null,
+      ].filter(Boolean),
     };
 
-    res.status(200).json(consolidatedResponse);
+    logger.info("Successfully fetched responses from all microservices");
+    return res.status(200).json(consolidatedResponse);
   } catch (error) {
     logger.error("Error while fetching subject details", {
       error: error.message,
@@ -77,12 +100,10 @@ app.post("/api/subject-details", async (req, res) => {
       const errorResponse = error.response
         ? error.response.data
         : "Service unreachable";
-      return res
-        .status(502)
-        .json({
-          message: "Error from one or more services",
-          details: errorResponse,
-        });
+      return res.status(502).json({
+        message: "Error from one or more services",
+        details: errorResponse,
+      });
     }
 
     res
@@ -151,8 +172,84 @@ app.use(
   })
 );
 
-// Start server
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  logger.info(`API Gateway running on port ${PORT}`);
-});
+// certificate-Checker Service Proxy
+app.use(
+  "/api/certificates",
+  createProxyMiddleware({
+    target: "http://localhost:5001", // Course Checker Service base URL
+    changeOrigin: true,
+    pathRewrite: { "^/api/certificates": "/api/certificates" }, // Keep `/api/courses` structure
+    logLevel: "debug",
+    on: {
+      proxyReq: fixRequestBody,
+    },
+    onProxyReq: (proxyReq, req) => {
+      logger.info(
+        `[Proxy] Forwarding request to Course Checker Service: ${req.method} ${req.originalUrl}`
+      );
+    },
+    onProxyRes: (proxyRes, req, res) => {
+      logger.info(
+        `[Proxy] Response received from Course Checker Service: ${req.method} ${req.originalUrl}`
+      );
+    },
+    onError: (err, req, res) => {
+      logger.error(
+        `[Proxy] Error connecting to Course Checker Service: ${err.message}`
+      );
+      res
+        .status(502)
+        .json({ message: "Error connecting to Course Checker Service" });
+    },
+  })
+);
+
+// Prerequisite-Checker Service Proxy
+app.use(
+  "/api/prerequisites",
+  createProxyMiddleware({
+    target: "http://localhost:5003", // Prerequisite Checker Service base URL
+    changeOrigin: true,
+    pathRewrite: { "^/api/prerequisites": "/api/prerequisites" }, // Keep `/api/prerequisites` structure
+    logLevel: "debug",
+    on: {
+      proxyReq: fixRequestBody,
+    },
+    onProxyReq: (proxyReq, req) => {
+      logger.info(
+        `[Proxy] Forwarding request to Prerequisite Checker Service: ${req.method} ${req.originalUrl}`
+      );
+    },
+    onProxyRes: (proxyRes, req, res) => {
+      logger.info(
+        `[Proxy] Response received from Prerequisite Checker Service: ${req.method} ${req.originalUrl}`
+      );
+    },
+    onError: (err, req, res) => {
+      logger.error(
+        `[Proxy] Error connecting to Prerequisite Checker Service: ${err.message}`
+      );
+      res
+        .status(502)
+        .json({ message: "Error connecting to Prerequisite Checker Service" });
+    },
+  })
+);
+
+// Connect to MongoDB
+const startServer = async () => {
+  try {
+    // Database connection
+    connectDB(process.env.MONGO_URI);
+    // Start server
+    const PORT = process.env.PORT || 4000;
+    app.listen(PORT, () => {
+      logger.info(`API Gateway running on port ${PORT}`);
+    });
+  } catch (error) {
+    logger.error(`Failed to connect to MongoDB: ${error.message}`);
+    process.exit(1);
+  }
+};
+
+startServer();
