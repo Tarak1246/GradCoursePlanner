@@ -5,6 +5,7 @@ const skipAuthRoutes = [
   { method: "GET", path: "/healthcheck" },
   { method: "POST", path: "/api/auth/signin" },
   { method: "POST", path: "/api/auth/signup" },
+  { method: "POST", path: "/api/auth/register-admin" },
 ];
 
 // Middleware to apply JWT authentication
