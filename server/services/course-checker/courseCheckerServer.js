@@ -18,27 +18,22 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
 }));
-// Initialize shared DB connection
-connectDB(process.env.MONGO_URI);
 
 // Error handling middleware
 app.use(errorHandler);
+app.use((req, res, next) => {
+  const userId = req.headers['x-user-id'];
+  const userEmail = req.headers['x-user-email'];
+  const role = req.headers['x-user-role'];  
+  if (!userId) {
+      return res.status(401).json({ message: 'User information missing in request' });
+  }
 
+  req.user = { id: userId, email: userEmail, role:role }; // Attach user info to req.user
+  next();
+});
 // Attach Routes
 app.use("/", courseRoutes);
-
-// Global JWT Authentication Middleware
-app.use((req, res, next) => {
-  logger.info(`[Request Received] Method: ${req.method}, URL: ${req.url}`);
-  passport.authenticate("jwt", { session: false }, (err, user, info) => {
-    if (err || !user) {
-      logger.warn(`Unauthorized access attempt: ${info?.message || err?.message}`);
-      return res.status(401).json({ message: "Unauthorized: Invalid or missing token" });
-    }
-    req.user = user; // Attach the authenticated user to the request object
-    next();
-  })(req, res, next);
-});
 
 // Middleware to handle 404 errors
 app.use((req, res) => {
@@ -69,8 +64,21 @@ process.on("uncaughtException", (error) => {
   process.exit(1); // Exit the process to prevent it from running indefinitely
 });
 
-// Start server
-const PORT = process.env.PORT || 5002;
-app.listen(PORT, () =>
-  logger.info(`Course-Checker Service running on port ${PORT}`)
-);
+
+// Connect to MongoDB
+const startServer = async () => {
+  try {
+      // Database connection
+      connectDB(process.env.MONGO_URI);
+      // Start server
+      const PORT = process.env.PORT || 5002;
+      app.listen(PORT, () => {
+        logger.info(`Course-Checker Service running on port ${PORT}`)
+      });
+  } catch (error) {
+      logger.error(`Failed to connect to MongoDB: ${error.message}`);
+      process.exit(1);
+  }
+};
+
+startServer();

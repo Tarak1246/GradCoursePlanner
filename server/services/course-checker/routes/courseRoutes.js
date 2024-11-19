@@ -28,6 +28,6 @@ router.get("/:courseId", getCourseDetails);
 // Route for Bulk Add or Modify Courses
 router.post("/bulk", verifyAdmin, bulkUploadRateLimiter, addOrModifyCourses);
 
-router.get("/api/course-check/:courseId", validateCourseSelection);
+router.get("/course-check/:courseId", validateCourseSelection);
 
 module.exports = router;
