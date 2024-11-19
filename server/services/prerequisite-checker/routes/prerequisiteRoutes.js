@@ -7,7 +7,7 @@ const {
 const router = express.Router();
 
 // Check prerequisites for a course
-router.get('/:courseId', checkPrerequisites);
+router.get('/prerequisite-check/:courseId', checkPrerequisites);
 
 // Mark prerequisites as completed
 router.post('/mark-completed', markPrerequisitesCompleted);

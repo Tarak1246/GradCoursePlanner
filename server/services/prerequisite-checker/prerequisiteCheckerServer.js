@@ -12,33 +12,24 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Global JWT Authentication Middleware
-app.use((req, res, next) => {
-    console.log(`[Request Received] Method: ${req.method}, URL: ${req.url}`);
-    if (
-      req.path === "/healthcheck" || // Exclude healthcheck or public routes
-      req.path.startsWith("/public")
-    ) {
-      return next();
-    }
-  
-    passport.authenticate("jwt", { session: false }, (err, user, info) => {
-      if (err || !user) {
-        logger.warn(`Unauthorized access attempt: ${info?.message || err?.message}`);
-        return res.status(401).json({ message: "Unauthorized: Invalid or missing token" });
-      }
-      req.user = user; // Attach the authenticated user to the request object
-      next();
-    })(req, res, next);
-  });
-
-
-// Routes
-app.use('/api/prerequisites', prerequisiteRoutes);
-
 // Error handling middleware
 app.use(errorHandler);
+app.use((req, res, next) => {
+    const userId = req.headers["x-user-id"];
+    const userEmail = req.headers["x-user-email"];
+    const role = req.headers["x-user-role"];
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ message: "User information missing in request" });
+    }
+  
+    req.user = { id: userId, email: userEmail, role: role }; // Attach user info to req.user
+    next();
+  });
 
+// Routes
+app.use('/', prerequisiteRoutes);
 // Connect to MongoDB
 const startServer = async () => {
     try {
