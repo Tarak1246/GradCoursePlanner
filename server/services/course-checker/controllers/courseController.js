@@ -76,32 +76,25 @@ exports.getAllCourses = async (req, res) => {
 exports.filterCourses = async (req, res) => {
   try {
     // Extract filters from request body
-    const { subject, campus, semester, year, certification, level } = req.body;
+    const filters = req.body;
 
-    // Validate required fields
-    if (!subject || !campus || !semester || !year || !level) {
-      logger.warn("Missing required fields in the request");
-      return res.status(400).json({
-        status: "failure",
-        message: "subject, campus, semester, year, and level are required",
-      });
-    }
+    // Log incoming filters
+    logger.info(`Received filters: ${JSON.stringify(filters)}`);
 
-    // Build the query dynamically
-    const query = {
-      subject, // Exact match for strings
-      campus,
-      semester,
-      year,
-      level,
-    };
+    // Dynamically build the query
+    const query = {};
 
-    if (certification) {
-      // Check if the certification exists in the `certificationRequirements` array
-      query.certificationRequirements = { $in: [certification] };
-    }
+    Object.entries(filters).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        // If the field contains an array of values, use $in for matching any of the values
+        query[key] = { $in: value };
+      } else {
+        // Otherwise, match the exact value
+        query[key] = value;
+      }
+    });
 
-    logger.info(`Fetching courses with filters: ${JSON.stringify(query)}`);
+    logger.info(`Constructed query: ${JSON.stringify(query)}`);
 
     // Fetch courses from the database
     const courses = await Course.find(query).lean();
@@ -128,6 +121,7 @@ exports.filterCourses = async (req, res) => {
     });
   }
 };
+
 
 exports.getCourseDetails = async (req, res) => {
   console.log("Fetching course details");
