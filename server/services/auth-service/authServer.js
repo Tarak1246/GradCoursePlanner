@@ -19,6 +19,8 @@ app.use(cors({
     credentials: true,
 }));
 
+
+  
 app.use('/', authRoutes);
 
 // Middleware to handle 404 errors

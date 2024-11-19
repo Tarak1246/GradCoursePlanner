@@ -11,7 +11,7 @@ const {
 } = require("../../../api-gateway/common/middleware/rateLimiter");
 const router = express.Router();
 
-router.post("/signup", loginRateLimiter, async (req, res, next) => {
+router.post("/signup", async (req, res, next) => {
   try {
     logger.info("Signup endpoint hit");
     await signup(req, res, next);
@@ -23,7 +23,6 @@ router.post("/signup", loginRateLimiter, async (req, res, next) => {
 
 router.post(
   "/signin",
-  loginRateLimiter,
   (req, res, next) => {
     passport.authenticate("local", { session: false }, (err, user, info) => {
       if (err) {
