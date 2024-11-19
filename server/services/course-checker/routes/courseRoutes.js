@@ -5,6 +5,7 @@ const {
   getCourseDetails,
   addOrModifyCourses,
   validateCourseSelection,
+  getEnumValues,
 } = require("../controllers/courseController");
 const {
   verifyAdmin,
@@ -20,7 +21,10 @@ const router = express.Router();
 router.get("/all", getAllCourses);
 
 // Filter courses based on criteria
-router.post("/filter", filterCourses);
+router.post("/filter-courses", filterCourses);
+
+// Route to fetch all enum values
+router.get("/enum-values", getEnumValues);
 
 // Get course details by course ID
 router.get("/:courseId", getCourseDetails);

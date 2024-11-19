@@ -7,8 +7,6 @@ const xlsx = require("xlsx");
 const {
   courseValidationSchema,
 } = require("../../../api-gateway/common/validators/courseValidator");
-const { Types } = require("mongoose");
-const ObjectId = Types.ObjectId;
 
 exports.getAllCourses = async (req, res) => {
   try {
@@ -77,34 +75,62 @@ exports.getAllCourses = async (req, res) => {
 
 exports.filterCourses = async (req, res) => {
   try {
-    const { category, subject, certificationRequirements, level } = req.body;
+    // Extract filters from request body
+    const { subject, campus, semester, year, certification, level } = req.body;
 
-    // Build query dynamically
-    const query = {};
-    if (category) query.category = { $in: category };
-    if (subject) query.subject = { $in: subject };
-    if (certificationRequirements)
-      query.certificationRequirements = { $in: certificationRequirements };
-    if (level) query.level = { $in: level };
-
-    const courses = await Course.find(query);
-
-    if (courses.length === 0) {
-      logger.info("No courses match the given filters");
-      return res
-        .status(404)
-        .json({ message: "No courses match the given filters" });
+    // Validate required fields
+    if (!subject || !campus || !semester || !year || !level) {
+      logger.warn("Missing required fields in the request");
+      return res.status(400).json({
+        status: "failure",
+        message: "subject, campus, semester, year, and level are required",
+      });
     }
 
-    logger.info("Filtered courses fetched successfully");
-    res.status(200).json(courses);
+    // Build the query dynamically
+    const query = {
+      subject, // Exact match for strings
+      campus,
+      semester,
+      year,
+      level,
+    };
+
+    if (certification) {
+      // Check if the certification exists in the `certificationRequirements` array
+      query.certificationRequirements = { $in: [certification] };
+    }
+
+    logger.info(`Fetching courses with filters: ${JSON.stringify(query)}`);
+
+    // Fetch courses from the database
+    const courses = await Course.find(query).lean();
+
+    if (!courses.length) {
+      logger.info("No courses found matching the filters");
+      return res.status(404).json({
+        status: "failure",
+        message: "No courses found matching the filters",
+      });
+    }
+
+    logger.info(`Successfully fetched ${courses.length} courses`);
+    return res.status(200).json({
+      status: "success",
+      message: "Courses fetched successfully",
+      values: courses,
+    });
   } catch (error) {
-    logger.error("Error filtering courses:", error);
-    res.status(500).json({ message: "Internal server error" });
+    logger.error("Error fetching courses", { error: error.message });
+    return res.status(500).json({
+      status: "failure",
+      message: "Internal server error",
+    });
   }
 };
 
 exports.getCourseDetails = async (req, res) => {
+  console.log("Fetching course details");
   try {
     let { courseId } = req.params;
     // Convert courseId to ObjectId
@@ -335,12 +361,10 @@ exports.validateCourseSelection = async (req, res) => {
   try {
     if (!userId) {
       logger.warn("User ID missing in JWT token");
-      return res
-        .status(401)
-        .json({
-          status: "rejected",
-          message: "Invalid token: User ID missing",
-        });
+      return res.status(401).json({
+        status: "rejected",
+        message: "Invalid token: User ID missing",
+      });
     }
 
     if (!courseId) {
@@ -488,13 +512,43 @@ exports.validateCourseSelection = async (req, res) => {
       `Error validating course selection for user ID: ${userId || "unknown"}`,
       error
     );
-    return res
-      .status(500)
-      .json({
-        status: "rejected",
-        message: `Error validating course selection for user ID: ${
-          userId || "unknown"
-        } ${error}`,
-      });
+    return res.status(500).json({
+      status: "rejected",
+      message: `Error validating course selection for user ID: ${
+        userId || "unknown"
+      } ${error}`,
+    });
+  }
+};
+
+exports.getEnumValues = async (req, res) => {
+  console.log("Fetching enum values for course schema");
+  try {
+    const courseSchema = Course.schema.paths;
+
+    // Extract enum values for the fields with enums
+    const enums = {
+      subject: courseSchema.subject?.enumValues || [],
+      campus: courseSchema.campus?.enumValues || [],
+      semester: courseSchema.semester?.enumValues || [],
+      level: courseSchema.level?.enumValues || [],
+      category: courseSchema.category?.caster?.enumValues || [],
+      certificationRequirements:
+        courseSchema.certificationRequirements?.caster?.enumValues || [],
+      status: courseSchema.status?.enumValues || [],
+    };
+
+    logger.info("Successfully fetched enum values for course schema");
+    return res.status(200).json({
+      status: "success",
+      message: "Enum values fetched successfully",
+      values: enums,
+    });
+  } catch (error) {
+    logger.error("Error fetching enum values", { error: error.message });
+    return res.status(500).json({
+      status: "failure",
+      message: "Internal server error",
+    });
   }
 };

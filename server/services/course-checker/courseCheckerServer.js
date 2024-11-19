@@ -35,6 +35,12 @@ app.use((req, res, next) => {
 // Attach Routes
 app.use("/", courseRoutes);
 
+app.use((req, res, next) => {
+  console.log(`Hit Route: ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+
 // Middleware to handle 404 errors
 app.use((req, res) => {
   logger.warn(`404 Error - Resource not found at path: ${req.originalUrl}`);
