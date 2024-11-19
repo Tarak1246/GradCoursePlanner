@@ -1,7 +1,9 @@
 const mongoose = require("mongoose");
 const Course = require("../../../api-gateway/common/models/Course");
 const logger = require("../../../api-gateway/common/utils/logger");
+const ProgramOfStudy = require("../../../api-gateway/common/models/programOfStudySchema");
 const xlsx = require("xlsx");
+const jwt = require('jsonwebtoken');
 const {
   courseValidationSchema,
 } = require("../../../api-gateway/common/validators/courseValidator");
@@ -65,14 +67,17 @@ exports.filterCourses = async (req, res) => {
     const query = {};
     if (category) query.category = { $in: category };
     if (subject) query.subject = { $in: subject };
-    if (certificationRequirements) query.certificationRequirements = { $in: certificationRequirements };
+    if (certificationRequirements)
+      query.certificationRequirements = { $in: certificationRequirements };
     if (level) query.level = { $in: level };
 
     const courses = await Course.find(query);
 
     if (courses.length === 0) {
       logger.info("No courses match the given filters");
-      return res.status(404).json({ message: "No courses match the given filters" });
+      return res
+        .status(404)
+        .json({ message: "No courses match the given filters" });
     }
 
     logger.info("Filtered courses fetched successfully");
@@ -119,12 +124,9 @@ exports.addOrModifyCourses = async (req, res) => {
     // Ensure only one file is uploaded
     if (Object.keys(req.files).length > 1) {
       logger.warn("Multiple files uploaded in the request");
-      return res
-        .status(400)
-        .json({
-          message:
-            "Only one file is allowed. Please upload a single Excel file.",
-        });
+      return res.status(400).json({
+        message: "Only one file is allowed. Please upload a single Excel file.",
+      });
     }
 
     const file = req.files.file;
@@ -132,11 +134,9 @@ exports.addOrModifyCourses = async (req, res) => {
     // Validate the file type (ensure it's an Excel file)
     if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
       logger.warn(`Invalid file type uploaded: ${file.name}`);
-      return res
-        .status(400)
-        .json({
-          message: "Invalid file type. Only Excel files are supported.",
-        });
+      return res.status(400).json({
+        message: "Invalid file type. Only Excel files are supported.",
+      });
     }
 
     // Read the Excel file
@@ -277,3 +277,122 @@ exports.addOrModifyCourses = async (req, res) => {
       .json({ message: "Internal server error", error: error.message });
   }
 };
+
+
+exports.validateCourseSelection = async (req, res) => {
+  let userId;
+  try {
+    // Extract user ID from the JWT token
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      logger.warn("Authorization token missing or malformed");
+      return res.status(401).json({ message: "Authorization token missing or malformed" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    userId = decoded.id;
+
+    if (!userId) {
+      logger.warn("User ID missing in JWT token");
+      return res.status(401).json({ message: "Invalid token: User ID missing" });
+    }
+
+    const { courseId } = req.params;
+    if (!courseId) {
+      logger.warn("Invalid request: Missing courseId");
+      return res.status(400).json({ message: "courseId is required" });
+    }
+
+    // Fetch user's program of study
+    const programOfStudy = await ProgramOfStudy.findOne({ userId });
+    const plannedAndCompletedCourses = programOfStudy
+      ? programOfStudy.courses.filter((c) => c.status === "Completed" || c.status === "Planned")
+      : [];
+
+    // Fetch selected course
+    const course = await Course.findById(courseId);
+    if (!course) {
+      logger.warn(`Course not found with ID: ${courseId}`);
+      return res.status(404).json({ message: "Course not found" });
+    }
+
+    // Check if the course is already planned or completed
+    const existingCourse = plannedAndCompletedCourses.find((c) => c.courseId.toString() === courseId);
+    if (existingCourse) {
+      logger.info(`Course already planned or completed for user ID: ${userId}`);
+      return res.status(400).json({
+        isValid: false,
+        message: "This course is already planned or completed.",
+      });
+    }
+
+    // If no program of study exists, no validation required
+    if (!programOfStudy) {
+      logger.info(`First-time registration: Skipping validations for user ID: ${userId}`);
+      return res.status(200).json({
+        isValid: true,
+        message: "First-time registration. No validation required.",
+      });
+    }
+
+    // Calculate total credits (Planned + Completed)
+    const totalCredits = plannedAndCompletedCourses.reduce((sum, c) => sum + c.credits, 0);
+
+    // If credits <= 12, no validation required
+    if (totalCredits <= 12) {
+      logger.info(`Credits <= 12: Skipping validations for user ID: ${userId}`);
+      return res.status(200).json({
+        isValid: true,
+        message: "Credits <= 12. No validation required.",
+      });
+    }
+
+    // Check CEG/6000-Level Credit Limit (<= 12 credits)
+    const ceg6000Credits = plannedAndCompletedCourses
+      .filter((c) => c.courseId.subject === "CEG" || c.courseId.course.startsWith("6"))
+      .reduce((sum, c) => sum + c.credits, 0);
+
+    if (ceg6000Credits + course.credits > 12) {
+      logger.info(`CEG/6000-Level credit limit exceeded for user ID: ${userId}`);
+      return res.status(400).json({
+        isValid: false,
+        message: "You cannot exceed 12 credits at the 6000 level or in CEG courses.",
+      });
+    }
+
+    // If credits >= 24, ensure core course validation
+    const coreCourses = plannedAndCompletedCourses.filter((c) =>
+      ["7200", "7370", "7100", "7140"].includes(c.courseId.course)
+    );
+    if (totalCredits >= 24) {
+      if (coreCourses.length === 0 && !["7200", "7370", "7100", "7140"].includes(course.course)) {
+        logger.info(`Credits >= 24: Current course must be a core course for user ID: ${userId}`);
+        return res.status(400).json({
+          isValid: false,
+          message: "Credits >= 24. You must take a core course.",
+        });
+      }
+
+      if (coreCourses.length === 1 && totalCredits + course.credits > 27) {
+        logger.info(
+          `Credits >= 27: Only one core course completed. Current course must be a core course for user ID: ${userId}`
+        );
+        return res.status(400).json({
+          isValid: false,
+          message: "Credits >= 27. You must take another core course.",
+        });
+      }
+    }
+
+    logger.info(`Course validated successfully for user ID: ${userId}`);
+    return res.status(200).json({
+      isValid: true,
+      message: "Course selection is valid.",
+    });
+  } catch (error) {
+    logger.error(`Error validating course selection for user ID: ${userId || "unknown"}`, error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
