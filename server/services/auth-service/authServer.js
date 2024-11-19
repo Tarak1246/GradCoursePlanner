@@ -12,13 +12,13 @@ const app = express();
 app.use(express.json());
 app.use(fileUpload());
 app.use(passport.initialize());
+
 app.use(cors({
     origin: ['http://localhost:4000'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
 }));
 
-connectDB(process.env.MONGO_URI);
 app.use('/', authRoutes);
 
 // Middleware to handle 404 errors
@@ -45,7 +45,20 @@ process.on('uncaughtException', (error) => {
 
 
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    logger.info(`Auth Service running on port ${PORT}`);
-});
+// Connect to MongoDB
+const startServer = async () => {
+    try {
+        // Database connection
+        connectDB(process.env.MONGO_URI);
+        // Start server
+        const PORT = process.env.PORT || 5000;
+        app.listen(PORT, () => {
+            logger.info(`Auth Service running on port ${PORT}`);
+        });
+    } catch (error) {
+        logger.error(`Failed to connect to MongoDB: ${error.message}`);
+        process.exit(1);
+    }
+};
+
+startServer();
