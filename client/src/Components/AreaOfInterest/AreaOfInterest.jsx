@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import baseApiUrl from "../../api/baseApiUrl";
+import {loginUser} from "../../api/baseApiUrl";
 import "./AreaOfInterest.css";
 
 const AreaOfInterest = () => {
@@ -9,7 +9,7 @@ const AreaOfInterest = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await baseApiUrl.get("/courses/all");
+        const response = await loginUser.get("/courses/all");
         setAreasOfInterest(response.data);
       } catch (err) {
         setError("Failed to load data");
