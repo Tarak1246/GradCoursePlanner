@@ -7,6 +7,7 @@ const programOfStudySchema = new mongoose.Schema(
       ref: 'User',
       required: true,
       index: true, // Index for faster queries
+      unique: true, // Each user can have only one program of study
     },
     courses: [
       {
@@ -27,25 +28,68 @@ const programOfStudySchema = new mongoose.Schema(
             return this.status === 'Completed';
           }, // Grade is only required for completed courses
         },
+        marks: {
+          type: Number,
+          min: 0,
+          max: 1000,
+          required: function () {
+            return this.status === 'Completed';
+          },
+        },
+        totalMarks: {
+          type: Number,
+          min: 0,
+          max: 1000,
+          required: function () {
+            return this.status === 'Completed';
+          },
+        },
         semesterTaken: {
           type: String,
           enum: ['spring', 'summer', 'fall'],
           required: true,
         },
         yearTaken: {
-          type: Number,
+          type: String,
           required: true,
         },
         credits: {
           type: Number,
           required: true,
         },
+        days:{
+          type: String,
+          required: true,
+        },
+        time:{
+          type: String,
+          required: true,
+        },
+        attribute:{
+          type: String,
+          required: true,
+        }
       },
     ],
     completionStatus: {
       type: String,
       enum: ['In Progress', 'Completed', 'Not Started'],
       default: 'In Progress',
+    },
+    gpa: {
+      type: Number,
+      min: 0,
+      max: 4,
+      default: 0,
+    },
+    firstSemester: {
+      semester: {
+        type: String,
+        enum: ['spring', 'summer', 'fall'],
+      },
+      year: {
+        type: String,
+      },
     },
     totalCredits: {
       type: Number,
