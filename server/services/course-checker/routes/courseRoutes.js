@@ -6,6 +6,9 @@ const {
   addOrModifyCourses,
   validateCourseSelection,
   getEnumValues,
+  registerCourse,
+  getProgramOfStudy,
+  updateCourseCompletion
 } = require("../controllers/courseController");
 const {
   verifyAdmin,
@@ -26,12 +29,18 @@ router.post("/filter-courses", filterCourses);
 // Route to fetch all enum values
 router.get("/enum-values", getEnumValues);
 
-// Get course details by course ID
-router.get("/:courseId", getCourseDetails);
+router.get("/program-of-study", getProgramOfStudy);
+
+router.put("/update-course-completion", updateCourseCompletion);
 
 // Route for Bulk Add or Modify Courses
 router.post("/bulk", verifyAdmin, bulkUploadRateLimiter, addOrModifyCourses);
 
 router.get("/course-check/:courseId", validateCourseSelection);
+
+router.get("/register-course/:courseId", registerCourse);
+// Get course details by course ID
+router.get("/:courseId", getCourseDetails);
+
 
 module.exports = router;
