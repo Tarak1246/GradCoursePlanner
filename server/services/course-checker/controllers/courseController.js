@@ -18,7 +18,9 @@ exports.getAllCourses = async (req, res) => {
 
     if (!courses.length && !certificates.length) {
       logger.info("No courses or certificates found");
-      return res.status(404).json({ message: "No courses or certificates found" });
+      return res
+        .status(404)
+        .json({ message: "No courses or certificates found" });
     }
 
     const response = {
@@ -55,7 +57,10 @@ exports.getAllCourses = async (req, res) => {
 
     // Convert sets to arrays for response
     response.categories = Object.fromEntries(
-      Object.entries(response.categories).map(([key, value]) => [key, [...value]])
+      Object.entries(response.categories).map(([key, value]) => [
+        key,
+        [...value],
+      ])
     );
     response.subjects = Object.fromEntries(
       Object.entries(response.subjects).map(([key, value]) => [key, [...value]])
@@ -75,7 +80,9 @@ exports.getAllCourses = async (req, res) => {
     logger.info("Fetched all courses and certificates successfully");
     return res.status(200).json(response);
   } catch (error) {
-    logger.error("Error fetching all courses and certificates:", { error: error.message });
+    logger.error("Error fetching all courses and certificates:", {
+      error: error.message,
+    });
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -178,7 +185,10 @@ exports.getCourseDetails = async (req, res) => {
       course,
     });
   } catch (error) {
-    logger.error(`Error fetching course details for ID: ${req.params.courseId}`, { error: error.message });
+    logger.error(
+      `Error fetching course details for ID: ${req.params.courseId}`,
+      { error: error.message }
+    );
     return res.status(500).json({
       status: "failure",
       message: "Internal server error",
@@ -256,38 +266,14 @@ exports.addOrModifyCourses = async (req, res) => {
       "status",
     ];
 
-    let allData = [];
-
-    // Process all sheets
-    sheets.forEach((sheetName) => {
-      const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], {
-        defval: "",
-      });
-
-      sheetData.forEach((row) => {
-        const filteredRow = {};
-        Object.keys(row).forEach((key) => {
-          if (requiredColumns.includes(key)) {
-            if (
-              [
-                "prerequisites",
-                "certificationRequirements",
-                "category",
-              ].includes(key)
-            ) {
-              try {
-                filteredRow[key] = row[key] ? JSON.parse(row[key]) : [];
-              } catch {
-                filteredRow[key] = [];
-              }
-            } else {
-              filteredRow[key] = row[key]?.toString().trim();
-            }
-          }
-        });
-        allData.push(filteredRow);
-      });
-    });
+    // Process sheets concurrently
+    const allData = (
+      await Promise.all(
+        sheets.map((sheetName) =>
+          xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" })
+        )
+      )
+    ).flat(); // Combine all parsed data into a single array
 
     if (allData.length === 0) {
       logger.warn("The Excel file contains no valid data");
@@ -296,12 +282,31 @@ exports.addOrModifyCourses = async (req, res) => {
         .json({ message: "The Excel file contains no data" });
     }
 
-    // Validate each row
+    // Validate and filter rows
     const errors = [];
     const validCourses = [];
 
     allData.forEach((row, index) => {
-      const { error } = courseValidationSchema.validate(row, {
+      const filteredRow = {};
+      Object.keys(row).forEach((key) => {
+        if (requiredColumns.includes(key)) {
+          if (
+            ["prerequisites", "certificationRequirements", "category"].includes(
+              key
+            )
+          ) {
+            try {
+              filteredRow[key] = row[key] ? JSON.parse(row[key]) : [];
+            } catch {
+              filteredRow[key] = [];
+            }
+          } else {
+            filteredRow[key] = row[key]?.toString().trim();
+          }
+        }
+      });
+
+      const { error } = courseValidationSchema.validate(filteredRow, {
         abortEarly: false,
       });
 
@@ -311,7 +316,7 @@ exports.addOrModifyCourses = async (req, res) => {
           message: error.details.map((err) => err.message),
         });
       } else {
-        validCourses.push(row);
+        validCourses.push(filteredRow);
       }
     });
 
@@ -338,47 +343,64 @@ exports.addOrModifyCourses = async (req, res) => {
     const results = await Course.bulkWrite(bulkOps);
     logger.info(`${validCourses.length} courses added/modified successfully`);
 
-    // Process certificates
-    for (const course of validCourses) {
+    // Process certificates in batches
+    const batchProcess = async (items, batchSize, processFn) => {
+      for (let i = 0; i < items.length; i += batchSize) {
+        const batch = items.slice(i, i + batchSize);
+        await Promise.all(batch.map(processFn)); // Process each batch concurrently
+      }
+    };
+
+    await batchProcess(validCourses, 10, async (course) => {
       const dbCourse = await Course.findOne({
         crn: course.crn,
         semester: course.semester,
         year: course.year,
       });
 
-      if (!dbCourse) {
-        logger.warn(`Course not found in database: ${course.title}`);
-        continue;
-      }
+      if (dbCourse && course.certificationRequirements.length > 0) {
+        await Promise.all(
+          course.certificationRequirements.map(async (certName) => {
+            let certificate = await Certificate.findOne({ name: certName });
 
-      if (course.certificationRequirements.length > 0) {
-        for (const certName of course.certificationRequirements) {
-          let certificate = await Certificate.findOne({ name: certName });
-          if (certificate) {
-            const courseExists = certificate.requiredCourses.some(
-              (c) => c.courseId.toString() === dbCourse._id.toString()
-            );
-
-            if (!courseExists) {
-              certificate.requiredCourses.push({ courseId: dbCourse._id });
-              await certificate.save();
-              logger.info(
-                `Updated certificate: ${certName} with course: ${dbCourse.title}`
+            if (certificate) {
+              // Avoid duplicate course entries in the certificate
+              const courseExists = certificate.requiredCourses.some(
+                (c) => c.courseId.toString() === dbCourse._id.toString()
               );
+              if (!courseExists) {
+                certificate.requiredCourses.push({ courseId: dbCourse._id });
+                await certificate.save();
+                logger.info(
+                  `Updated certificate: ${certName} with course: ${dbCourse.title}`
+                );
+              } else {
+                logger.info(
+                  `Course already exists in certificate: ${certName}`
+                );
+              }
+            } else {
+              try {
+                const newCertificate = new Certificate({
+                  name: certName,
+                  requiredCourses: [{ courseId: dbCourse._id }],
+                });
+                await newCertificate.save();
+                logger.info(
+                  `Created new certificate: ${certName} with course: ${dbCourse.title}`
+                );
+              } catch (err) {
+                if (err.code === 11000) {
+                  logger.warn(`Duplicate certificate detected: ${certName}`);
+                } else {
+                  throw err;
+                }
+              }
             }
-          } else {
-            const newCertificate = new Certificate({
-              name: certName,
-              requiredCourses: [{ courseId: dbCourse._id }],
-            });
-            await newCertificate.save();
-            logger.info(
-              `Created new certificate: ${certName} with course: ${dbCourse.title}`
-            );
-          }
-        }
+          })
+        );
       }
-    }
+    });
 
     res.status(200).json({
       message: `${validCourses.length} courses added/modified successfully`,
@@ -392,11 +414,12 @@ exports.addOrModifyCourses = async (req, res) => {
 };
 
 exports.validateCourseSelection = async (req, res) => {
-  let userId = req?.user?.id;
-  let { courseId } = req.params;
+  const userId = req?.user?.id;
+  const { courseId } = req.params;
+
   try {
     if (!userId) {
-      logger.warn("User ID missing in JWT token");
+      logger.warn("Missing user ID in JWT token");
       return res.status(401).json({
         status: "rejected",
         message: "Invalid token: User ID missing",
@@ -404,40 +427,49 @@ exports.validateCourseSelection = async (req, res) => {
     }
 
     if (!courseId) {
-      logger.warn("Invalid request: Missing courseId");
-      return res
-        .status(400)
-        .json({ status: "rejected", message: "courseId is required" });
+      logger.warn("Missing course ID in request");
+      return res.status(400).json({
+        status: "rejected",
+        message: "courseId is required",
+      });
     }
 
-    // Convert courseId to ObjectId
-    userId = new mongoose.Types.ObjectId(userId);
-    // Convert courseId to ObjectId
-    courseId = new mongoose.Types.ObjectId(courseId);
-    // Fetch user's program of study
-    const programOfStudy = await ProgramOfStudy.findOne({ userId });
-    const plannedAndCompletedCourses = programOfStudy
-      ? programOfStudy.courses.filter(
-          (c) => c.status === "Completed" || c.status === "Planned"
-        )
-      : [];
+    // Convert IDs to ObjectId
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const courseObjectId = new mongoose.Types.ObjectId(courseId);
 
-    // Fetch selected course
-    const course = await Course.findById(courseId);
+    logger.info(
+      `Validating course selection for user ID: ${userId}, course ID: ${courseId}`
+    );
+
+    // Fetch user's ProgramOfStudy and selected course concurrently
+    const [programOfStudy, course] = await Promise.all([
+      ProgramOfStudy.findOne({ userId: userObjectId }).lean(),
+      Course.findById(courseObjectId).lean(),
+    ]);
+
     if (!course) {
-      logger.warn(`Course not found with ID: ${courseId}`);
-      return res
-        .status(404)
-        .json({ status: "rejected", message: "Course not found" });
+      logger.warn(`Course not found for ID: ${courseId}`);
+      return res.status(404).json({
+        status: "rejected",
+        message: "Course not found",
+      });
     }
+
+    const plannedAndCompletedCourses =
+      programOfStudy?.courses.filter(
+        (c) => c.status === "Completed" || c.status === "Planned"
+      ) || [];
 
     // Check if the course is already planned or completed
-    const existingCourse = plannedAndCompletedCourses.find(
+    const isAlreadyRegistered = plannedAndCompletedCourses.some(
       (c) => c.courseId.toString() === courseId
     );
 
-    if (existingCourse) {
-      logger.info(`Course already planned or completed for user ID: ${userId}`);
+    if (isAlreadyRegistered) {
+      logger.info(
+        `Course already registered for user ID: ${userId}, course ID: ${courseId}`
+      );
       return res.status(400).json({
         status: "fulfilled",
         data: {
@@ -447,11 +479,9 @@ exports.validateCourseSelection = async (req, res) => {
       });
     }
 
-    // If no program of study exists, no validation required
+    // Handle first-time registration
     if (!programOfStudy) {
-      logger.info(
-        `First-time registration: Skipping validations for user ID: ${userId}`
-      );
+      logger.info(`First-time registration for user ID: ${userId}`);
       return res.status(200).json({
         status: "fulfilled",
         data: {
@@ -461,15 +491,28 @@ exports.validateCourseSelection = async (req, res) => {
       });
     }
 
-    // Calculate total credits (Planned + Completed)
-    const totalCredits = plannedAndCompletedCourses.reduce(
-      (sum, c) => sum + c.credits,
-      0
-    );
+    // Calculate total credits and specific limits
+    const { totalCredits, ceg6000Credits, coreCourseCount } =
+      plannedAndCompletedCourses.reduce(
+        (acc, c) => {
+          acc.totalCredits += c.credits;
+          if (
+            c.courseId.subject === "CEG" ||
+            c.courseId.course.startsWith("6")
+          ) {
+            acc.ceg6000Credits += c.credits;
+          }
+          if (["7200", "7370", "7100", "7140"].includes(c.courseId.course)) {
+            acc.coreCourseCount++;
+          }
+          return acc;
+        },
+        { totalCredits: 0, ceg6000Credits: 0, coreCourseCount: 0 }
+      );
 
-    // If credits <= 12, no validation required
+    // Skip validation for credits <= 12
     if (totalCredits <= 12) {
-      logger.info(`Credits <= 12: Skipping validations for user ID: ${userId}`);
+      logger.info(`Credits <= 12. Skipping validation for user ID: ${userId}`);
       return res.status(200).json({
         status: "fulfilled",
         data: {
@@ -479,13 +522,7 @@ exports.validateCourseSelection = async (req, res) => {
       });
     }
 
-    // Check CEG/6000-Level Credit Limit (<= 12 credits)
-    const ceg6000Credits = plannedAndCompletedCourses
-      .filter(
-        (c) => c.courseId.subject === "CEG" || c.courseId.course.startsWith("6")
-      )
-      .reduce((sum, c) => sum + c.credits, 0);
-
+    // Validate CEG/6000-Level Credit Limit
     if (ceg6000Credits + course.credits > 12) {
       logger.info(
         `CEG/6000-Level credit limit exceeded for user ID: ${userId}`
@@ -500,17 +537,14 @@ exports.validateCourseSelection = async (req, res) => {
       });
     }
 
-    // If credits >= 24, ensure core course validation
-    const coreCourses = plannedAndCompletedCourses.filter((c) =>
-      ["7200", "7370", "7100", "7140"].includes(c.courseId.course)
-    );
+    // Validate core course requirements if totalCredits >= 24
     if (totalCredits >= 24) {
-      if (
-        coreCourses.length === 0 &&
-        !["7200", "7370", "7100", "7140"].includes(course.course)
-      ) {
+      const isCoreCourse = ["7200", "7370", "7100", "7140"].includes(
+        course.course
+      );
+      if (coreCourseCount === 0 && !isCoreCourse) {
         logger.info(
-          `Credits >= 24: Current course must be a core course for user ID: ${userId}`
+          `Credits >= 24. Core course required for user ID: ${userId}`
         );
         return res.status(400).json({
           status: "fulfilled",
@@ -521,9 +555,9 @@ exports.validateCourseSelection = async (req, res) => {
         });
       }
 
-      if (coreCourses.length === 1 && totalCredits + course.credits > 27) {
+      if (coreCourseCount === 1 && totalCredits + course.credits > 27) {
         logger.info(
-          `Credits >= 27: Only one core course completed. Current course must be a core course for user ID: ${userId}`
+          `Credits >= 27. Additional core course required for user ID: ${userId}`
         );
         return res.status(400).json({
           status: "fulfilled",
@@ -535,7 +569,9 @@ exports.validateCourseSelection = async (req, res) => {
       }
     }
 
-    logger.info(`Course validated successfully for user ID: ${userId}`);
+    logger.info(
+      `Course selection validated successfully for user ID: ${userId}`
+    );
     return res.status(200).json({
       status: "fulfilled",
       data: {
@@ -545,46 +581,61 @@ exports.validateCourseSelection = async (req, res) => {
     });
   } catch (error) {
     logger.error(
-      `Error validating course selection for user ID: ${userId || "unknown"}`,
+      `Error validating course selection for user ID: ${userId}`,
       error
     );
     return res.status(500).json({
       status: "rejected",
-      message: `Error validating course selection for user ID: ${
-        userId || "unknown"
-      } ${error}`,
+      message: "Internal server error",
     });
   }
 };
 
 exports.getEnumValues = async (req, res) => {
-  console.log("Fetching enum values for course schema");
+  logger.info("Fetching enum values for the course schema...");
   try {
-    const courseSchema = Course.schema.paths;
+    const schemaPaths = Course.schema.paths;
 
-    // Extract enum values for the fields with enums
+    if (!schemaPaths) {
+      logger.error("Course schema paths not found");
+      return res.status(500).json({
+        status: "failure",
+        message: "Course schema paths not found",
+      });
+    }
+
+    // Fetch enum values in one go
     const enums = {
-      subject: courseSchema.subject?.enumValues || [],
-      campus: courseSchema.campus?.enumValues || [],
-      semester: courseSchema.semester?.enumValues || [],
-      level: courseSchema.level?.enumValues || [],
-      category: courseSchema.category?.caster?.enumValues || [],
+      subject: schemaPaths.subject?.enumValues || [],
+      campus: schemaPaths.campus?.enumValues || [],
+      semester: schemaPaths.semester?.enumValues || [],
+      level: schemaPaths.level?.enumValues || [],
+      category: schemaPaths.category?.caster?.enumValues || [],
       certificationRequirements:
-        courseSchema.certificationRequirements?.caster?.enumValues || [],
-      status: courseSchema.status?.enumValues || [],
+        schemaPaths.certificationRequirements?.caster?.enumValues || [],
+      status: schemaPaths.status?.enumValues || [],
     };
 
-    logger.info("Successfully fetched enum values for course schema");
+    // Log count of fetched enums instead of full values to reduce log size
+    logger.info(
+      `Enum values fetched successfully. Counts: ${Object.keys(enums)
+        .map((key) => `${key}: ${enums[key].length}`)
+        .join(", ")}`
+    );
+
     return res.status(200).json({
       status: "success",
       message: "Enum values fetched successfully",
       values: enums,
     });
   } catch (error) {
-    logger.error("Error fetching enum values", { error: error.message });
+    logger.error("Error fetching enum values", {
+      message: error.message,
+      stack: error.stack,
+    });
     return res.status(500).json({
       status: "failure",
-      message: "Internal server error",
+      message: "Internal server error while fetching enum values",
     });
   }
 };
@@ -629,12 +680,10 @@ exports.updateCourseCompletion = async (req, res) => {
         logger.warn(
           `Invalid grade provided: ${grade} for courseId: ${courseId}`
         );
-        return res
-          .status(400)
-          .json({
-            status: "failure",
-            message: `Invalid grade provided: ${grade} for course: ${courseName}`,
-          });
+        return res.status(400).json({
+          status: "failure",
+          message: `Invalid grade provided: ${grade} for course: ${courseName}`,
+        });
       }
       if (
         marks !== undefined &&
@@ -642,12 +691,10 @@ exports.updateCourseCompletion = async (req, res) => {
         marks > totalMarks
       ) {
         logger.warn(`Marks cannot exceed totalMarks for courseId: ${courseId}`);
-        return res
-          .status(400)
-          .json({
-            status: "failure",
-            message: `Marks cannot exceed totalMarks for course: ${courseName}`,
-          });
+        return res.status(400).json({
+          status: "failure",
+          message: `Marks cannot exceed totalMarks for course: ${courseName}`,
+        });
       }
 
       // Find the course in the program of study
@@ -658,12 +705,10 @@ exports.updateCourseCompletion = async (req, res) => {
         logger.warn(
           `CourseId: ${courseId} not found in program of study for userId: ${userId}`
         );
-        return res
-          .status(400)
-          .json({
-            status: "failure",
-            message: `Course: ${courseName} not found in program of study`,
-          });
+        return res.status(400).json({
+          status: "failure",
+          message: `Course: ${courseName} not found in program of study`,
+        });
       }
 
       // Update course details
@@ -742,7 +787,6 @@ exports.registerCourse = async (req, res) => {
 
     // Fetch the course to register
     const courseToRegister = await Course.findById(courseObjectId).lean();
-
     if (!courseToRegister) {
       logger.warn(`Course not found with ID: ${courseId}`);
       return res.status(404).json({
@@ -761,8 +805,8 @@ exports.registerCourse = async (req, res) => {
       });
     }
 
-    // Check for program of study or create a new one
-    let programOfStudy = await ProgramOfStudy.findOneAndUpdate(
+    // Check or create the program of study
+    const programOfStudy = await ProgramOfStudy.findOneAndUpdate(
       { userId: userObjectId },
       {
         $setOnInsert: {
@@ -782,11 +826,12 @@ exports.registerCourse = async (req, res) => {
       { new: true, upsert: true }
     );
 
-    // Check if the course is already registered
-    const alreadyRegistered = programOfStudy.courses.some(
-      (c) => c.courseId.toString() === courseId && c.status !== "Dropped"
-    );
-    if (alreadyRegistered) {
+    // Check for duplicate registration
+    if (
+      programOfStudy.courses.some(
+        (c) => c.courseId.toString() === courseId && c.status !== "Dropped"
+      )
+    ) {
       logger.info(
         `Course ${courseId} is already registered for user ID: ${userId}`
       );
@@ -796,9 +841,9 @@ exports.registerCourse = async (req, res) => {
       });
     }
 
-    // Enforce first semester two-course limit
+    // Handle first semester restrictions
     if (!programOfStudy.firstSemester.semester) {
-      // If first semester is not set, assign this course's semester and year as the first semester
+      // Set the first semester if not already defined
       programOfStudy.firstSemester = {
         semester: courseToRegister.semester,
         year: courseToRegister.year,
@@ -807,7 +852,7 @@ exports.registerCourse = async (req, res) => {
       courseToRegister.semester === programOfStudy.firstSemester.semester &&
       courseToRegister.year === programOfStudy.firstSemester.year
     ) {
-      // Check if the student has already registered two courses in the first semester
+      // Restrict to two courses in the first semester
       const firstSemesterCourses = programOfStudy.courses.filter(
         (c) =>
           c.semesterTaken === programOfStudy.firstSemester.semester &&
@@ -825,23 +870,21 @@ exports.registerCourse = async (req, res) => {
         });
       }
     }
-    // Check for conflicting courses (attribute is "Face-to-Face" only)
+
+    // Check for schedule conflicts
     if (courseToRegister.attribute === "Face-to-Face") {
       const conflictingCourse = programOfStudy.courses.find((c) => {
         if (!c.courseId) return false;
 
-        // Check if the semester and year are the same
         const isSameSemester =
           c.semesterTaken === courseToRegister.semester &&
           c.yearTaken === courseToRegister.year;
 
-        // Check if the days and attribute are the same
         const isSameDays = c.days === courseToRegister.days;
         const isSameAttribute = c.attribute === courseToRegister.attribute;
-        console.log(isSameSemester, isSameDays, isSameAttribute);
+
         if (!isSameSemester || !isSameDays || !isSameAttribute) return false;
 
-        // Parse time ranges into comparable minutes
         const [startA, endA] = courseToRegister.time.split("-").map((time) => {
           const [hours, minutes] = time.split(":").map(Number);
           return hours * 60 + minutes;
@@ -850,21 +893,21 @@ exports.registerCourse = async (req, res) => {
           const [hours, minutes] = time.split(":").map(Number);
           return hours * 60 + minutes;
         });
-        // Check if the time ranges overlap
+
         return (
-          (startA >= startB && startA < endB) || // Start of A is within B
-          (endA > startB && endA <= endB) || // End of A is within B
-          (startA <= startB && endA >= endB) // A fully overlaps B
+          (startA >= startB && startA < endB) ||
+          (endA > startB && endA <= endB) ||
+          (startA <= startB && endA >= endB)
         );
       });
+
       if (conflictingCourse) {
         logger.info(
           `Course ${courseId} conflicts with another registered course for user ID: ${userId}`
         );
         return res.status(400).json({
           status: "failure",
-          message:
-            "This course conflicts with another registered course. Please check schedule",
+          message: "This course conflicts with another registered course.",
         });
       }
     }
@@ -918,36 +961,20 @@ exports.registerCourse = async (req, res) => {
       attribute: courseToRegister.attribute,
     });
 
-    // Update program of study fields
-    programOfStudy.totalCredits += parseInt(courseToRegister.credits, 10);
-
-    if (courseToRegister.subject === "CS") {
-      programOfStudy.csCredits += parseInt(courseToRegister.credits, 10);
-    } else if (courseToRegister.subject === "CEG") {
-      programOfStudy.cegCredits += parseInt(courseToRegister.credits, 10);
-    }
-
-    if (
+    // Update total credits and other metrics
+    const credits = parseInt(courseToRegister.credits, 10) || 0;
+    programOfStudy.totalCredits += credits;
+    programOfStudy.csCredits += courseToRegister.subject === "CS" ? credits : 0;
+    programOfStudy.cegCredits +=
+      courseToRegister.subject === "CEG" ? credits : 0;
+    programOfStudy.upperLevelCredits +=
       courseToRegister.course.startsWith("7") ||
       courseToRegister.course.startsWith("8")
-    ) {
-      programOfStudy.upperLevelCredits += parseInt(
-        courseToRegister.credits,
-        10
-      );
-    } else if (courseToRegister.course.startsWith("6")) {
-      programOfStudy.lowerLevelCredits += parseInt(
-        courseToRegister.credits,
-        10
-      );
-    }
-
-    if (!programOfStudy.firstSemester.semester) {
-      programOfStudy.firstSemester.semester = courseToRegister.semester;
-      programOfStudy.firstSemester.year = courseToRegister.year;
-    }
-
-    programOfStudy.completionStatus = "In Progress";
+        ? credits
+        : 0;
+    programOfStudy.lowerLevelCredits += courseToRegister.course.startsWith("6")
+      ? credits
+      : 0;
 
     await programOfStudy.save();
 
@@ -968,11 +995,9 @@ exports.registerCourse = async (req, res) => {
 };
 
 exports.getProgramOfStudy = async (req, res) => {
-  console.log("Fetching program of study");
   try {
-    console.log(req.user);
     const userId = req?.user?.id;
-    console.log(userId);
+
     if (!userId) {
       logger.warn("Missing userId in request");
       return res.status(400).json({
@@ -982,8 +1007,8 @@ exports.getProgramOfStudy = async (req, res) => {
     }
 
     const userObjectId = new mongoose.Types.ObjectId(userId);
-    console.log(userObjectId);
-    // Fetch the program of study for the user
+
+    // Fetch the program of study for the user with populated course details
     const programOfStudy = await ProgramOfStudy.findOne({
       userId: userObjectId,
     })
@@ -1008,7 +1033,14 @@ exports.getProgramOfStudy = async (req, res) => {
       data: programOfStudy,
     });
   } catch (error) {
-    logger.error("Error fetching program of study", { error: error.message });
+    logger.error(
+      `Error fetching program of study for user ID: ${
+        req?.user?.id || "unknown"
+      }`,
+      {
+        error: error.message,
+      }
+    );
     return res.status(500).json({
       status: "failure",
       message: "Internal server error",
