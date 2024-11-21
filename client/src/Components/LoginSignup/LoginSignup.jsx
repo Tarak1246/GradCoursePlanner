@@ -1,13 +1,13 @@
-import React, { useState } from 'react'
-import './LoginSignup.css'
+import React, { useState } from "react";
+import "./LoginSignup.css";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
-import { loginUser, signupUser } from "/Users/aksha/source/repos/Tarak1246/GradCoursePlanner/client/src/api/baseApiUrl";
-export const LoginSignup = () => {
+import { loginUser, signupUser } from "../../api/baseApiUrl";
 
-  const [name, setName]=useState("");
-  const [email, setEmail]=useState("");
-  const [password, setPassword]=useState("");
+export const LoginSignup = () => {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [action, setAction] = useState("in");
   const [formerrors, setErrors] = useState({});
 
@@ -29,11 +29,10 @@ export const LoginSignup = () => {
 
   const resetForm = () => {
     //setName('');
-    setEmail('');
+    setEmail("");
     //setPassword('');
     //setErrors({});
   };
-
 
   const validate = () => {
     const newErrors = {};
@@ -60,88 +59,146 @@ export const LoginSignup = () => {
     } else if (password.length < 6) {
       newErrors.password = "Password must be at least 6 characters";
     }
-    console.log("hit validate function")
+    console.log("hit validate function");
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0; // return true if no errors
   };
 
-
-  async function login(){
-    
-    console.warn(email,password);
-    let item= {email,password};
-    if(validate()){
-    try {
-      let userData = await loginUser(item);
+  async function login() {
+    console.warn(email, password);
+    let item = { email, password };
+    if (validate()) {
+      try {
+        let userData = await loginUser(item);
         localStorage.setItem("loginUser", userData?.user?.username);
         localStorage.setItem("loginUserEmail", userData?.user?.email);
         localStorage.setItem("jwtToken", userData?.token);
         console.warn("Successful login");
         console.warn(userData);
         navigate("/drag-and-drop-course");
+      } catch (error) {
+        console.log(error);
       }
-     catch (error) {
-      console.log(error);
-    } }else{
+    } else {
       console.warn(formerrors);
     }
-  };
-  async function signup(){
-    
-    console.warn(email,password);
+  }
+  async function signup() {
+    console.warn(email, password);
     let role = "student";
-    let item= {name,email,password,role};
+    let item = { name, email, password, role };
     try {
       let userData = await signupUser(item);
-        localStorage.setItem("message", userData?.message);
-        console.warn("Successful signup");
-        console.warn(userData);
-        setAction("in");
-      }
-     catch (error) {
+      localStorage.setItem("message", userData?.message);
+      console.warn("Successful signup");
+      console.warn(userData);
+      setAction("in");
+    } catch (error) {
       console.log(error);
-    } 
-  };
+    }
+  }
   return (
     <div className="container">
       <div className="login">
         <form>
-        <div className="signuptext">Sign {action} to continue </div>  
-        <div className="inputs form-control">
-          {action==="in"?<div></div>:<div className="input">
-            <img src="" alt="" />
-            <div className="text">Student Name</div>
-            <input type="text" onChange={(e)=>setName(e.target.value)} className="textbox" />
-            {formerrors.name && <div className="error">{formerrors.name}</div>}
+          <div className="signuptext">Sign {action} to continue </div>
+          <div className="inputs form-control">
+            {action === "in" ? (
+              <div></div>
+            ) : (
+              <div className="input">
+                <img src="" alt="" />
+                <div className="text">Student Name</div>
+                <input
+                  type="text"
+                  onChange={(e) => setName(e.target.value)}
+                  className="textbox"
+                />
+                {formerrors.name && (
+                  <div className="error">{formerrors.name}</div>
+                )}
+              </div>
+            )}
 
-          </div>}
-          
-          <div className="input form-control">
-            <img src="" alt="" />
-            <div className="text">Email</div>
-            <input type="email"  value={email} required onChange={(e)=>setEmail(e.target.value)} className="textbox" />
-            {formerrors.email && <div className="error">{formerrors.email}</div>}
-
+            <div className="input form-control">
+              <img src="" alt="" />
+              <div className="text">Email</div>
+              <input
+                type="email"
+                value={email}
+                required
+                onChange={(e) => setEmail(e.target.value)}
+                className="textbox"
+              />
+              {formerrors.email && (
+                <div className="error">{formerrors.email}</div>
+              )}
+            </div>
+            <div className="input form-control">
+              <img src="" alt="" />
+              <div className="text">Password</div>
+              <input
+                type="password"
+                required
+                onChange={(e) => setPassword(e.target.value)}
+                className="textbox"
+              />
+              {formerrors.password && (
+                <div className="error">{formerrors.password}</div>
+              )}
+            </div>
           </div>
-          <div className="input form-control">
-            <img src="" alt="" />
-            <div className="text">Password</div>
-            <input type="password" required onChange={(e)=>setPassword(e.target.value)} className="textbox" />
-            {formerrors.password && <div className="error">{formerrors.password}</div>}
-
-          </div>
-        </div>
-        {action==="in"?<div>
-          <input type="button" className="signupbotton" style={{background:"white", color:"black", border:"1px solid #b7b7b7"}} onClick={()=>{setAction("up"); resetForm();}} value="Sign Up"/>
-        <input type="button" className="signupbotton" onClick={()=>{validate(); login()}} value="Sign On"/>
-        
-        </div>:<div className="submit-container">
-        <input type="button" className="signupbotton" style={{background:"white", color:"black", border:"1px solid #b7b7b7"}} onClick={()=>{setAction("in")}} value="Sign On"/>
-        <input type="button" className="signupbotton" onClick={signup} value="Sign Up"/>
-        </div>
-       }
-       </form>
-        </div>
+          {action === "in" ? (
+            <div>
+              <input
+                type="button"
+                className="signupbotton"
+                style={{
+                  background: "white",
+                  color: "black",
+                  border: "1px solid #b7b7b7",
+                }}
+                onClick={() => {
+                  setAction("up");
+                  resetForm();
+                }}
+                value="Sign Up"
+              />
+              <input
+                type="button"
+                className="signupbotton"
+                onClick={() => {
+                  validate();
+                  login();
+                }}
+                value="Sign On"
+              />
+            </div>
+          ) : (
+            <div className="submit-container">
+              <input
+                type="button"
+                className="signupbotton"
+                style={{
+                  background: "white",
+                  color: "black",
+                  border: "1px solid #b7b7b7",
+                }}
+                onClick={() => {
+                  setAction("in");
+                }}
+                value="Sign On"
+              />
+              <input
+                type="button"
+                className="signupbotton"
+                onClick={signup}
+                value="Sign Up"
+              />
+            </div>
+          )}
+        </form>
+      </div>
     </div>
-  )
-}
+  );
+};

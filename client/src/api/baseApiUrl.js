@@ -1,8 +1,8 @@
 // src/api/axios.js
 import axios from "axios";
 
-const baseApiUrl =  "http://localhost:4000/api";
-
+const baseApiUrl = "http://localhost:4000/api";
+const jwtToken = localStorage.getItem("jwtToken");
 
 /**
  * @function loginUser
@@ -33,5 +33,53 @@ export const signupUser = async (userData) => {
     return response.data;
   } catch (error) {
     throw new Error(`Error user register: ${error.message}`);
+  }
+};
+
+// function to get data for list of course based on area of interest
+export const fetchAreaOfInterestData = async (setAreasOfInterest, setError) => {
+  try {
+    const response = await axios.get(`${baseApiUrl}/courses/all`, {
+      headers: {
+        Authorization: `Bearer ${jwtToken}`,
+      },
+    });
+    setAreasOfInterest(response.data);
+    return response.data;
+  } catch (error) {
+    setError(error.message);
+    throw new Error(`Failed to load data`);
+  }
+};
+
+export const handleCourseClick = async (
+  course,
+  setSelectedCourse,
+  setIsModalOpen,
+  setCourseDetails
+) => {
+  try {
+    setSelectedCourse(course);
+    setIsModalOpen(true);
+
+    const authToken = localStorage.getItem("jwtToken");
+
+    const response = await axios.post(
+      `${baseApiUrl}/courses/filter-courses`,
+      { title: course },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+      }
+    );
+
+    setCourseDetails(response.data);
+  } catch (error) {
+    console.error(error);
+    setCourseDetails({
+      error: error.response?.data?.message || error.message,
+    });
   }
 };
