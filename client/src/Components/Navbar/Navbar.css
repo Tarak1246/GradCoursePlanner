@@ -1,0 +1,27 @@
+.menucontainer {
+    font-family: Arial, sans-serif;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background:#00693e;
+    padding: 15px 7%;
+    height: 30px;
+
+  }
+
+  ul{
+    color: #fefefe;
+    flex: 1;
+    list-style: none;
+    text-align: center;
+    margin-left: 400px;
+    padding-bottom: 10px;
+  }
+  
+  ul li{
+    display: inline-block;
+    margin: 10px 10px;
+    font-size: 18px;
+    cursor: pointer;
+  }

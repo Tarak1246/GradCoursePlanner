@@ -1,0 +1,49 @@
+
+
+.container{
+    font-family: Arial, sans-serif;
+    width: 100%;
+    padding-top: 100px;
+    justify-content: space-between;
+    height: 60vh;
+}
+
+.dashboardcontainer {
+  
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+.dashheader{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: -webkit-xxx-large;
+    margin-left: 70px;
+    font-family: auto;
+    font-weight: lighter;
+}
+.dashbuttons{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-top: 20px;
+}
+
+.button {
+    background: linear-gradient(45deg, #71a759, #21480e);
+    width: 200px;
+    border: none;
+    border-radius: 8px;
+    color: white;
+    padding: 10px 30px;
+    margin: 50px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.button:hover {
+    transform: scale(1.1);
+    background: linear-gradient(45deg, #71a759, #21480e);
+}

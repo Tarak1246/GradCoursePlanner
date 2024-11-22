@@ -2,15 +2,18 @@ import React, { useState } from "react";
 import "./LoginSignup.css";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
-import { loginUser, signupUser } from "../../api/baseApiUrl";
+import { loginUser, signupUser } from "/Users/aksha/source/repos/Tarak1246/GradCoursePlanner/client/src/api/baseApiUrl";
+import { useAuth } from '../AuthContext/AuthContext';
 
-export const LoginSignup = () => {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+export const LoginSignup = ({onLogin}) => {
+
+  const [name, setName]=useState("");
+  const [email, setEmail]=useState("");
+  const [password, setPassword]=useState("");
   const [action, setAction] = useState("in");
-  const [formerrors, setErrors] = useState({});
-
+  const[errorMessage,setErrorMessage] = useState("");
+  const { authLogin } = useAuth();
+  
   /**
    * @description Function for programmatic navigation within the application,
    * likely used for redirecting the user to different routes.
@@ -27,96 +30,94 @@ export const LoginSignup = () => {
     formState: { errors },
   } = useForm({});
 
-  const resetForm = () => {
-    //setName('');
-    setEmail("");
-    //setPassword('');
-    //setErrors({});
+  const resetError = () => {
+    setErrorMessage("");
   };
 
-  const validate = () => {
-    const newErrors = {};
 
-    // Validate Name (only for signup)
-    if (action === "up") {
-      if (!name.trim()) {
-        newErrors.name = "Name is required";
-      } else if (name.length < 2 || name.length > 50) {
-        newErrors.name = "Name must be between 2 and 50 characters";
-      }
+  const onSubmit = (data) => {
+    console.warn("form data",data)
+    if (action === "in") {
+      login(data);
+    } else {
+      signup(data);
     }
-
-    // Validate Email
-    if (!email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = "Email format is invalid";
-    }
-
-    // Validate Password
-    if (!password) {
-      newErrors.password = "Password is required";
-    } else if (password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters";
-    }
-    console.log("hit validate function");
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0; // return true if no errors
   };
 
-  async function login() {
-    console.warn(email, password);
-    let item = { email, password };
-    if (validate()) {
-      try {
-        let userData = await loginUser(item);
+  async function login(data){
+    
+    
+    let email=data.email;
+    let password=data.password;
+    console.warn(email,password);
+    let item= {email,password};
+    authLogin();
+    onLogin();
+    navigate("/Dashboard");
+    try {
+      console.log("hit signin function")
+      let userData = await loginUser(item);
         localStorage.setItem("loginUser", userData?.user?.username);
         localStorage.setItem("loginUserEmail", userData?.user?.email);
         localStorage.setItem("jwtToken", userData?.token);
+        localStorage.setItem("isUserLoginIn", true);
         console.warn("Successful login");
         console.warn(userData);
-        navigate("/drag-and-drop-course");
-      } catch (error) {
-        console.log(error);
+        navigate("/Dashboard");
       }
-    } else {
-      console.warn(formerrors);
-    }
-  }
-  async function signup() {
-    console.warn(email, password);
-    let role = "student";
-    let item = { name, email, password, role };
-    try {
-      let userData = await signupUser(item);
-      localStorage.setItem("message", userData?.message);
-      console.warn("Successful signup");
-      console.warn(userData);
-      setAction("in");
-    } catch (error) {
+     catch (error) {
+      setErrorMessage("Invalid username or password. Please try again.")
       console.log(error);
     }
-  }
+  };
+  async function signup(data){
+    let name=data.name;
+    let email=data.email;
+    let password=data.password;
+    let role = "student";
+    console.warn(name,email,password);
+    
+    let item= {name,email,password,role};
+    try {
+      console.log("hit signup function")
+      let userData = await signupUser(item);
+      console.warn(userData);
+        localStorage.setItem("message", userData?.message);
+        console.warn("Successful signup");
+        console.warn(userData);
+        setAction("in");
+        reset();
+      }
+     catch (error) {
+      console.log(error);
+    }
+  };
   return (
     <div className="container">
       <div className="login">
-        <form>
-          <div className="signuptext">Sign {action} to continue </div>
+      <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="signuptext">Sign {action} to continue</div>
+          {errorMessage && <div className="error">{errorMessage}</div>}
           <div className="inputs form-control">
-            {action === "in" ? (
-              <div></div>
-            ) : (
+            {action === "in" ? null : (
               <div className="input">
                 <img src="" alt="" />
                 <div className="text">Student Name</div>
                 <input
                   type="text"
-                  onChange={(e) => setName(e.target.value)}
+                  {...register("name", { required: "Name is required",
+                    minLength: {
+                      value: 2,
+                      message: "Name must be at least 2 characters",
+                    },
+                    maxLength: {
+                      value: 50,
+                      message: "Name must not exceed 50 characters",
+                    },
+                   })}
                   className="textbox"
                 />
-                {formerrors.name && (
-                  <div className="error">{formerrors.name}</div>
-                )}
+                {errors.name && <div className="error">{errors.name.message}</div>}
               </div>
             )}
 
@@ -125,52 +126,61 @@ export const LoginSignup = () => {
               <div className="text">Email</div>
               <input
                 type="email"
-                value={email}
-                required
-                onChange={(e) => setEmail(e.target.value)}
+                {...register("email", { 
+                  required: "Email is required", 
+                  pattern: {
+                    value: /^[^@ ]+@[^@ ]+\.[^@ .]{2,}$/,
+                    message: "Invalid email address",
+                  },
+                  pattern: {
+                    value: /^[^@ ]+@wright\.edu$/,
+                    message: "Email must end with @wright.edu",
+                  },
+                })}
                 className="textbox"
               />
-              {formerrors.email && (
-                <div className="error">{formerrors.email}</div>
-              )}
+              {errors.email && <div className="error">{errors.email.message}</div>}
             </div>
+
             <div className="input form-control">
               <img src="" alt="" />
               <div className="text">Password</div>
               <input
                 type="password"
-                required
-                onChange={(e) => setPassword(e.target.value)}
+                {...register("password", { required: "Password is required",
+                  minLength: {
+                    value: 8,
+                    message: "Password must be at least 8 characters",
+                  },
+                  pattern: {
+                    value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+                    message:
+                      "Password must include uppercase, lowercase, number, and special character",
+                  },
+                 })}
                 className="textbox"
               />
-              {formerrors.password && (
-                <div className="error">{formerrors.password}</div>
-              )}
+              {errors.password && <div className="error">{errors.password.message}</div>}
             </div>
           </div>
+
           {action === "in" ? (
             <div>
               <input
                 type="button"
                 className="signupbotton"
-                style={{
-                  background: "white",
-                  color: "black",
-                  border: "1px solid #b7b7b7",
-                }}
+                style={{ background: "white", color: "black", border: "1px solid #b7b7b7" }}
                 onClick={() => {
                   setAction("up");
-                  resetForm();
+                  reset();
+                  resetError();
+                  clearErrors();
                 }}
                 value="Sign Up"
               />
               <input
-                type="button"
+                type="submit"
                 className="signupbotton"
-                onClick={() => {
-                  validate();
-                  login();
-                }}
                 value="Sign On"
               />
             </div>
@@ -179,26 +189,24 @@ export const LoginSignup = () => {
               <input
                 type="button"
                 className="signupbotton"
-                style={{
-                  background: "white",
-                  color: "black",
-                  border: "1px solid #b7b7b7",
-                }}
+                style={{ background: "white", color: "black", border: "1px solid #b7b7b7" }}
                 onClick={() => {
                   setAction("in");
-                }}
+                  reset();
+                  resetError();
+                  clearErrors();}}
                 value="Sign On"
               />
               <input
-                type="button"
+                type="submit"
                 className="signupbotton"
-                onClick={signup}
                 value="Sign Up"
               />
             </div>
           )}
         </form>
-      </div>
+
+        </div>
     </div>
   );
 };
