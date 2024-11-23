@@ -26,12 +26,12 @@ const Modal = ({ title, sections, onClose }) => {
 
           <div className="flex">
             <div className="w-[35%] bg-gray-100 p-4 border-r text-[14px]">
-              <ul className="space-y-3">
+              <ul className="space-y-3 text-left">
                 {Object.keys(sections).map((section) => (
                   <li
                     key={section}
                     onClick={() => setActiveSection(section)}
-                    className={`cursor-pointer p-2 rounded-lg ${
+                    className={`cursor-pointer p-2 rounded-lg block ${
                       activeSection === section
                         ? "bg-green-800 text-white"
                         : "bg-gray-200 text-gray-800 hover:bg-gray-300"
