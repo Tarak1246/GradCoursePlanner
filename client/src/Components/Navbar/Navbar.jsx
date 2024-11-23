@@ -50,7 +50,8 @@ export const Navbar = () => {
                       {isOpen && (
                           <div className="dropdown-menu">
                               <div className="dropdown-item">
-                                  yalla.7@wright.com
+                              {localStorage.getItem("loginUserEmail")}
+                        
                               </div>
                               <div className="dropdown-item">
                                   Graduate Student

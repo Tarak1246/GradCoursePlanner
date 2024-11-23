@@ -51,6 +51,7 @@ export const LoginSignup = ({onLogin}) => {
     let password=data.password;
     console.warn(email,password);
     let item= {email,password};
+    localStorage.setItem("loginUserEmail",data.email);
     authLogin();
     onLogin();
     navigate("/Dashboard");
