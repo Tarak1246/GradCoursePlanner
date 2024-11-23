@@ -2,7 +2,6 @@
 import axios from "axios";
 
 const baseApiUrl = "http://localhost:4000/api";
-const jwtToken = localStorage.getItem("jwtToken");
 
 /**
  * @function loginUser
@@ -30,7 +29,6 @@ export const loginUser = async (userData) => {
 export const signupUser = async (userData) => {
   try {
     const response = await axios.post(`${baseApiUrl}/auth/signup`, userData);
-    console.log(response)
     return response.data;
   } catch (error) {
     throw new Error(`Error user register: ${error.message}`);
@@ -40,6 +38,7 @@ export const signupUser = async (userData) => {
 // function to get data for list of course based on area of interest
 export const fetchAreaOfInterestData = async (setAreasOfInterest, setError) => {
   try {
+    const jwtToken = localStorage.getItem("jwtToken");
     const response = await axios.get(`${baseApiUrl}/courses/all`, {
       headers: {
         Authorization: `Bearer ${jwtToken}`,
@@ -64,9 +63,6 @@ export const handleCourseClick = async (
     setIsModalOpen(true);
 
     const authToken = localStorage.getItem("jwtToken");
-
-    console.log(localStorage.getItem("jwtToken"));
-
     const response = await axios.post(
       `${baseApiUrl}/courses/filter-courses`,
       { title: course },

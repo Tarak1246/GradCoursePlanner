@@ -20,14 +20,9 @@ import Dashboard from "./Components/Dashboard/Dashboard";
 import Layout from "./Components/Layout/Layout";
 
 const App = () => {
-  localStorage.setItem("isUserLoginIn", false);
-  console.warn(localStorage.getItem("isUserLoginIn"));
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  const handleLogin = () => {
-    setIsLoggedIn(true);
-    localStorage.clear();
-  };
+  const handleLogin = () => setIsLoggedIn(true);
   const handleLogout = () => setIsLoggedIn(false);
 
   return (
