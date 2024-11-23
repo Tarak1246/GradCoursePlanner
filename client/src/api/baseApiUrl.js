@@ -64,6 +64,8 @@ export const handleCourseClick = async (
 
     const authToken = localStorage.getItem("jwtToken");
 
+    console.log(localStorage.getItem("jwtToken"));
+
     const response = await axios.post(
       `${baseApiUrl}/courses/filter-courses`,
       { title: course },

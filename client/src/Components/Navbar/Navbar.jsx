@@ -1,76 +1,82 @@
-import React, { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
-import './Navbar.css';
-import { useAuth } from '../AuthContext/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { NavLink } from "react-router-dom";
+import "./Navbar.css";
+import { useAuth } from "../AuthContext/AuthContext";
+import { useNavigate } from "react-router-dom";
 import profile_logo from "../Assets/images/profilesvg.jpg";
-
 
 export const Navbar = () => {
   const [user, setUser] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const {authLogout} = useAuth();
+  const { authLogout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     authLogout(); // Reset the authentication state
-    navigate('/'); // Redirect to the login page
+    navigate("/"); // Redirect to the login page
   };
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleDropdown = () => {
-      setIsOpen(!isOpen);
+    setIsOpen(!isOpen);
   };
 
   return (
-    <div className="menucontainer">
-      
-          <div className="menu-bar">
-            <nav>
-            <ul>
-              <li><NavLink to="/dashboard">Dashboard</NavLink></li>
-              <li><NavLink to="/courses">View Courses</NavLink></li>
-              <li><NavLink to="/register-classes">Register</NavLink></li>
-              <li><NavLink to="/program-of-study">Program</NavLink></li>
-              <li><a>
-                <button
-                  onClick={handleLogout}
-                >Logout</button></a>
-              </li>
-              <li className="dropdown"><a>
-                      <button onClick={toggleDropdown} className="dropdown-btn">
-                          <img
-                              src={profile_logo}
-                              alt="Profile"
-                              className="profile-icon"
-                          />
-                          Akshay
-                      </button></a>
-                      {isOpen && (
-                          <div className="dropdown-menu">
-                              <div className="dropdown-item">
-                              {localStorage.getItem("loginUserEmail")}
-                        
-                              </div>
-                              <div className="dropdown-item">
-                                  Graduate Student
-                              </div>
-                              <div className="dropdown-item logout" onClick={() => alert('Logged out!')}>
-                                  Logout
-                              </div>
-                          </div>
-                      )}
+    <div className="menucontainer mb-8">
+      <div className="menu-bar">
+        <nav>
+          <ul>
+            <li>
+              <NavLink to="/dashboard">Dashboard</NavLink>
             </li>
-       
-             
-              {/* <li>
+            <li>
+              <NavLink to="/courses">View Courses</NavLink>
+            </li>
+            <li>
+              <NavLink to="/register-classes">Register</NavLink>
+            </li>
+            <li>
+              <NavLink to="/program-of-study">Program</NavLink>
+            </li>
+            <li>
+              <a>
+                <button onClick={handleLogout}>Logout</button>
+              </a>
+            </li>
+            <li className="dropdown">
+              <a>
+                <button onClick={toggleDropdown} className="dropdown-btn">
+                  <img
+                    src={profile_logo}
+                    alt="Profile"
+                    className="profile-icon"
+                  />
+                  Akshay
+                </button>
+              </a>
+              {isOpen && (
+                <div className="dropdown-menu">
+                  <div className="dropdown-item">
+                    {localStorage.getItem("loginUserEmail")}
+                  </div>
+                  <div className="dropdown-item">Graduate Student</div>
+                  <div
+                    className="dropdown-item logout"
+                    onClick={() => alert("Logged out!")}>
+                    Logout
+                  </div>
+                </div>
+              )}
+            </li>
+
+            {/* <li>
                 <button
                   onClick={handleLogout}
                 >Logout</button>
               </li> */}
-            </ul>
-            {/* <ul className=''>
+          </ul>
+          {/* <ul className=''>
             <li className="dropdown">
                       <button onClick={toggleDropdown} className="dropdown-btn">
                           <img
@@ -95,8 +101,8 @@ export const Navbar = () => {
                       )}
             </li>
             </ul> */}
-            </nav>
-  {/* <nav>
+        </nav>
+        {/* <nav>
     <ul class="sidebar">
       <li onclick="hideSidebar()"><a href="#"><svg xmlns="http://www.w3.org/2000/svg" height="26" viewBox="0 96 960 960" width="26"><path d="m249 849-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"></path></svg></a></li>
       <li><a href="#">Blog</a></li>
@@ -115,8 +121,8 @@ export const Navbar = () => {
       <li class="menu-button" onclick="showSidebar()"><a href="#"><svg xmlns="http://www.w3.org/2000/svg" height="26" viewBox="0 96 960 960" width="26"><path d="M120 816v-60h720v60H120Zm0-210v-60h720v60H120Zm0-210v-60h720v60H120Z"></path></svg></a></li>
     </ul>
   </nav> */}
-          </div>
-        </div>
+      </div>
+    </div>
   );
 };
 
