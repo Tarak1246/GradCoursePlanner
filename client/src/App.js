@@ -13,6 +13,7 @@ import PrivateRoute from "./Components/AuthContext/PrivateRoute";
 import { AuthProvider } from './Components/AuthContext/AuthContext';
 import Dashboard from "./Components/Dashboard/Dashboard";
 import Layout from "./Components/Layout/Layout";
+import Program from "./Components/Program/Program";
 
 const App = () => {
   localStorage.setItem("isUserLoginIn", false);
@@ -50,7 +51,7 @@ const App = () => {
               />
               <Route 
                 path="program-of-study" 
-                element={<PrivateRoute isLoggedIn={isLoggedIn}><DragAndDropCourse /></PrivateRoute>} 
+                element={<PrivateRoute isLoggedIn={isLoggedIn}><Program /></PrivateRoute>} 
               />
             </Route>
 
