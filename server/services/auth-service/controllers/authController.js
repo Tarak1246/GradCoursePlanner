@@ -13,7 +13,7 @@ exports.signup = async (req, res) => {
         const emailRegex = /^[a-zA-Z0-9._%+-]+@wright\.edu$/;
         if (!emailRegex.test(email)) {
             logger.warn(`Signup failed - Invalid email domain: ${email}`);
-            return res.status(400).json({ message: 'Email must end with @wright.edu' });
+            return res.json({ status:400, message: 'Email must end with @wright.edu' });
         }
 
         // Validate password strength
@@ -21,7 +21,8 @@ exports.signup = async (req, res) => {
             minLength: 8, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 1
         })) {
             logger.warn(`Signup failed - Weak password provided by ${email}`);
-            return res.status(400).json({
+            return res.json({
+                status:400,
                 message: 'Password must be at least 8 characters long and include uppercase letters, lowercase letters, numbers, and symbols'
             });
         }
@@ -30,7 +31,7 @@ exports.signup = async (req, res) => {
         const existingUser = await User.findOne({ email });
         if (existingUser) {
             logger.warn(`Signup failed - Email ${email} already exists`);
-            return res.status(409).json({ message: 'Email already exists' });
+            return res.json({ status:409, message: 'Email already exists' });
         }
 
         // Create new user
@@ -45,7 +46,7 @@ exports.signup = async (req, res) => {
 
         await newUser.save();
         logger.info(`User ${email} registered successfully`);
-        res.status(201).json({ message: 'User registered successfully' });
+        res.json({ status:201, message: 'User registered successfully' });
     } catch (error) {
         if (error.name === 'ValidationError') {
             // Handle Mongoose validation errors
@@ -53,11 +54,11 @@ exports.signup = async (req, res) => {
                 .map(err => err.message)
                 .join(', ');
             logger.error(`Validation error during signup: ${errorMessage}`);
-            return res.status(400).json({ message: errorMessage });
+            return res.json({status:400, message: errorMessage });
         }
 
         logger.error('Signup error:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        res.json({ status:500,message: 'Internal server error' });
     }
 };
 
@@ -74,7 +75,8 @@ exports.signin = async (req, res) => {
         );
 
         logger.info(`User ${user.email} signed in successfully`);
-        res.status(200).json({
+        res.json({
+            status:200,
             message: 'Signin successful',
             token: token,
             user: {
@@ -86,7 +88,7 @@ exports.signin = async (req, res) => {
         });
     } catch (error) {
         logger.error('Signin error:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        res.json({ status:500, message: 'Internal server error' });
     }
 };
 
@@ -98,14 +100,14 @@ exports.registerAdmin = async (req, res) => {
         // Verify admin key
         if (adminKey !== process.env.ADMIN_KEY) {
             logger.warn(`Register admin failed - Invalid admin key provided for email: ${email}`);
-            return res.status(403).json({ message: 'Invalid admin key. Access denied.' });
+            return res.json({ status:403, message: 'Invalid admin key. Access denied.' });
         }
 
         // Check if user already exists
         const existingUser = await User.findOne({ email });
         if (existingUser) {
             logger.warn(`Register admin failed - Email ${email} already exists`);
-            return res.status(409).json({ message: 'Email already exists' });
+            return res.json({ status:409, message: 'Email already exists' });
         }
 
         // Create admin user
@@ -118,17 +120,17 @@ exports.registerAdmin = async (req, res) => {
 
         await newAdmin.save();
         logger.info(`Admin user ${email} registered successfully`);
-        res.status(201).json({ message: 'Admin registered successfully' });
+        res.json({ status:201, message: 'Admin registered successfully' });
     } catch (error) {
         if (error.name === 'ValidationError') {
             const errorMessage = Object.values(error.errors)
                 .map(err => err.message)
                 .join(', ');
             logger.error(`Validation error during admin registration: ${errorMessage}`);
-            return res.status(400).json({ message: errorMessage });
+            return res.json({ status:400, message: errorMessage });
         }
 
         logger.error('Register admin error:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        res.json({ status:500, message: 'Internal server error' });
     }
 };

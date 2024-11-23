@@ -14,6 +14,7 @@ export const Navbar = () => {
 
   const handleLogout = () => {
     authLogout(); // Reset the authentication state
+    localStorage.clear(); // Clear the local storage
     navigate("/"); // Redirect to the login page
   };
   const [isOpen, setIsOpen] = useState(false);
@@ -52,7 +53,6 @@ export const Navbar = () => {
                     alt="Profile"
                     className="profile-icon"
                   />
-                  Akshay
                 </button>
               </a>
               {isOpen && (

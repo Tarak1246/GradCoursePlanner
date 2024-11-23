@@ -30,6 +30,7 @@ export const loginUser = async (userData) => {
 export const signupUser = async (userData) => {
   try {
     const response = await axios.post(`${baseApiUrl}/auth/signup`, userData);
+    console.log(response)
     return response.data;
   } catch (error) {
     throw new Error(`Error user register: ${error.message}`);
