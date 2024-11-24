@@ -47,13 +47,14 @@ const Table = ({ data, columns }) => {
 
 // Usage
 const columns = [
-  { header: "Title", accessor: "name" },
-  { header: "Status", accessor: "age" },
+  { header: "CRN", accessor: "name" },
+  { header: "Level", accessor: "age" },
+  { header: "Title", accessor: "email" },
   { header: "Semester", accessor: "email" },
   { header: "Year", accessor: "email" },
   { header: "Credits", accessor: "email" },
-  { header: "Days", accessor: "email" },
-  { header: "", accessor: "email" },
+  { header: "Grade", accessor: "email" },
+  { header: "", accessor: "age" },
 ];
 
 const data = [
@@ -67,13 +68,26 @@ function Program() {
       <h1 className="headtxt">Program of study</h1>
       <div className="divprofile">
         <div className="divname">
-        <p>Name:{ localStorage.getItem("loginUser")}</p>
-        <p>Email:{localStorage.getItem("loginUserEmail")}</p>
+        <p><strong>Name</strong>:  { localStorage.getItem("loginUser")}</p>
+        <p><strong>Email</strong>:  {localStorage.getItem("loginUserEmail")}</p>
+        <p><strong>Degree</strong>:  Master of Science</p>
         </div>
         <div className="divprogram">
-        <p>Degree: Master of Science</p>
-        <p>Level: Graduate</p>
-        <p>Program: Computer Science - MS</p>
+       
+        <p><strong>Level</strong>:  Graduate</p>
+        <p><strong>Program</strong>:  Computer Science - MS</p>
+        <p><strong>Status</strong>:  In Progess</p>
+        </div>
+        <div className="divscores">
+        <p><strong>CEG Credits</strong>:  9</p>
+        <p><strong>CS Credits</strong>:  12</p>
+        <p><strong>Core Credits</strong>:  6</p>
+       
+        </div>
+        <div className="divscores2">
+        <p><strong>Lowlevel Credits</strong>:  9</p>
+        <p><strong>Total Credits</strong>:  21</p>
+        <p><strong>GPA</strong>: 3.98</p>
         </div>
       </div>
       <Table data={data} columns={columns} />

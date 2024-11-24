@@ -16,10 +16,21 @@ padding-top: 15px;
 .divname{
     display: flex;
     flex-direction: column;
-    width: 50%;
+    width: 30%;
     padding-left: 50px;
 }
 .divprogram{
     display: flex;
     flex-direction: column;
+    width: 30%;
+}
+.divscores{
+    display: flex;
+    flex-direction: column;
+    width: 20%;
+}
+.divscores2{
+    display: flex;
+    flex-direction: column;
+    width: 20%;
 }
