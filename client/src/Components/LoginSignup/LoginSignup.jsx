@@ -129,7 +129,7 @@ export const LoginSignup = ({ onLogin }) => {
           <div className="submit-container">
             <input
               type="button"
-              className="signupbotton"
+              className="signupbotton signup"
               onClick={() => handleActionToggle(action === "login" ? "signup" : "login")}
               value={action === "login" ? "Sign Up" : "Sign In"}
             />

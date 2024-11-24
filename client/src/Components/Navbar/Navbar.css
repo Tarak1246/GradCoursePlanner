@@ -54,7 +54,7 @@ ul li {
 .dropdown-menu {
   position: absolute;
   top: 120%;
-  left: -54px;
+  left: -104px;
   background: white;
   border: 1px solid #ddd;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);

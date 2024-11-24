@@ -58,12 +58,15 @@ export const Navbar = () => {
               {isOpen && (
                 <div className="dropdown-menu">
                   <div className="dropdown-item">
+                    {localStorage.getItem("loginUser")}
+                  </div>
+                  <div className="dropdown-item">
                     {localStorage.getItem("loginUserEmail")}
                   </div>
                   <div className="dropdown-item">Graduate Student</div>
                   <div
                     className="dropdown-item logout"
-                    onClick={() => alert("Logged out!")}>
+                    onClick={() => handleLogout}>
                     Logout
                   </div>
                 </div>

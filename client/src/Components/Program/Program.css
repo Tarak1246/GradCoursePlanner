@@ -1,0 +1,25 @@
+.tablediv{
+    margin: 50px;
+}
+
+.headtxt{
+    font-size: 1.875rem;
+line-height: 2.25rem;
+font-weight: 700;
+margin: 0px 50px;
+padding-top: 15px;
+}
+.divprofile{
+    display: flex;
+    margin-top: 20px;
+}
+.divname{
+    display: flex;
+    flex-direction: column;
+    width: 50%;
+    padding-left: 50px;
+}
+.divprogram{
+    display: flex;
+    flex-direction: column;
+}

@@ -1,8 +1,9 @@
 import React from "react";
+import './Program.css';
 
 const Table = ({ data, columns }) => {
   return (
-    <div style={{ overflowX: "auto" }}>
+    <div className='tablediv' style={{ overflowX: "auto" }}>
       <table style={{ borderCollapse: "collapse", width: "100%" }}>
         <thead>
           <tr>
@@ -46,9 +47,13 @@ const Table = ({ data, columns }) => {
 
 // Usage
 const columns = [
-  { header: "Name", accessor: "name" },
-  { header: "Age", accessor: "age" },
-  { header: "Email", accessor: "email" },
+  { header: "Title", accessor: "name" },
+  { header: "Status", accessor: "age" },
+  { header: "Semester", accessor: "email" },
+  { header: "Year", accessor: "email" },
+  { header: "Credits", accessor: "email" },
+  { header: "Days", accessor: "email" },
+  { header: "", accessor: "email" },
 ];
 
 const data = [
@@ -59,7 +64,18 @@ const data = [
 function Program() {
   return (
     <div>
-      <h1>React Table</h1>
+      <h1 className="headtxt">Program of study</h1>
+      <div className="divprofile">
+        <div className="divname">
+        <p>Name:{ localStorage.getItem("loginUser")}</p>
+        <p>Email:{localStorage.getItem("loginUserEmail")}</p>
+        </div>
+        <div className="divprogram">
+        <p>Degree: Master of Science</p>
+        <p>Level: Graduate</p>
+        <p>Program: Computer Science - MS</p>
+        </div>
+      </div>
       <Table data={data} columns={columns} />
     </div>
   );
