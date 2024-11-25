@@ -510,6 +510,17 @@ exports.validateCourseSelection = async (req, res) => {
         { totalCredits: 0, ceg6000Credits: 0, coreCourseCount: 0 }
       );
 
+    if(totalCredits >= 30) {
+      logger.info(`Credits > 30. Expected credits for graduation reached for user ID: ${userId}`);
+      return res.status(400).json({
+        status: "fulfilled",
+        data: {
+          isValid: false,
+          message: "You have already registered 30 credits.",
+        },
+      });
+    }
+
     // Skip validation for credits <= 12
     if (totalCredits <= 12) {
       logger.info(`Credits <= 12. Skipping validation for user ID: ${userId}`);
@@ -934,6 +945,7 @@ exports.registerCourse = async (req, res) => {
         $set: {
           sectionRemaining: sectionRemaining - 1,
           sectionActual: sectionActual + 1,
+          ...(sectionRemaining - 1 === 0 && { status: "closed" }), // Close the course if no seats remaining
         },
       },
       { new: true }
@@ -981,6 +993,17 @@ exports.registerCourse = async (req, res) => {
     logger.info(
       `Successfully registered course ${courseId} for user ID: ${userId}`
     );
+
+    if (programOfStudy.totalCredits >= 30) {
+      logger.info(
+        `Total credits limit of 30 reached for user ID: ${userId}`
+      );
+      return res.status(200).json({
+        status: "success",
+        message: "Course registered successfully. Graduation limit credits reached.",
+      });
+    }
+
     return res.status(200).json({
       status: "success",
       message: "Course registered successfully",
@@ -1008,13 +1031,13 @@ exports.getProgramOfStudy = async (req, res) => {
 
     const userObjectId = new mongoose.Types.ObjectId(userId);
 
-    // Fetch the program of study for the user with populated course details
+    // Fetch the program of study for the user with the required fields
     const programOfStudy = await ProgramOfStudy.findOne({
       userId: userObjectId,
     })
       .populate(
         "courses.courseId",
-        "title credits semester year attribute days time instructor"
+        "crn subject course title credits semester year attribute days time instructor"
       )
       .lean();
 
@@ -1026,6 +1049,16 @@ exports.getProgramOfStudy = async (req, res) => {
       });
     }
 
+    // Transform the response to include only courseId as a string
+    programOfStudy.courses = programOfStudy.courses.map((course) => {
+      const { courseId, ...rest } = course;
+      return {
+        ...rest,
+        courseId: courseId?._id?.toString() || null, // Include only the courseId
+        ...courseId, // Merge the populated fields from the courseId
+      };
+    });
+
     logger.info(`Program of study fetched successfully for user ID: ${userId}`);
     return res.status(200).json({
       status: "success",
@@ -1034,12 +1067,8 @@ exports.getProgramOfStudy = async (req, res) => {
     });
   } catch (error) {
     logger.error(
-      `Error fetching program of study for user ID: ${
-        req?.user?.id || "unknown"
-      }`,
-      {
-        error: error.message,
-      }
+      `Error fetching program of study for user ID: ${req?.user?.id || "unknown"}`,
+      { error: error.message }
     );
     return res.status(500).json({
       status: "failure",
@@ -1047,3 +1076,124 @@ exports.getProgramOfStudy = async (req, res) => {
     });
   }
 };
+
+exports.deleteCourse = async (req, res) => {
+  const userId = req?.user?.id;
+  const { courseId } = req.params;
+
+  try {
+    if (!userId) {
+      logger.warn("Missing user ID in JWT token");
+      return res.status(401).json({
+        status: "rejected",
+        message: "Invalid token: User ID missing",
+      });
+    }
+
+    if (!courseId) {
+      logger.warn("Missing course ID in request");
+      return res.status(400).json({
+        status: "rejected",
+        message: "courseId is required",
+      });
+    }
+
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const courseObjectId = new mongoose.Types.ObjectId(courseId);
+
+    logger.info(`Validating course removal for user ID: ${userId}, course ID: ${courseId}`);
+
+    // Fetch the program of study and the course concurrently
+    const [programOfStudy, courseToDelete] = await Promise.all([
+      ProgramOfStudy.findOne({ userId: userObjectId }),
+      Course.findById(courseObjectId),
+    ]);
+
+    if (!programOfStudy) {
+      logger.warn(`Program of study not found for user ID: ${userId}`);
+      return res.status(404).json({
+        status: "failure",
+        message: "Program of study not found",
+      });
+    }
+
+    if (!courseToDelete) {
+      logger.warn(`Course not found for ID: ${courseId}`);
+      return res.status(404).json({
+        status: "failure",
+        message: "Course not found",
+      });
+    }
+
+    // Find the course in the program of study
+    const courseInProgram = programOfStudy.courses.find(
+      (c) => c.courseId.toString() === courseId
+    );
+
+    if (!courseInProgram) {
+      logger.warn(`Course ID ${courseId} not found in program of study for user ID: ${userId}`);
+      return res.status(400).json({
+        status: "failure",
+        message: "Course not found in your program of study",
+      });
+    }
+
+    // Validate if the course is already completed
+    if (courseInProgram.status === "Completed") {
+      logger.info(`Cannot delete completed course for user ID: ${userId}, course ID: ${courseId}`);
+      return res.status(400).json({
+        status: "failure",
+        message: "Cannot delete a completed course",
+      });
+    }
+
+    // Remove the course from program of study
+    programOfStudy.courses = programOfStudy.courses.filter(
+      (c) => c.courseId.toString() !== courseId
+    );
+
+    // Update total credits and other program-specific fields
+    const removedCredits = courseInProgram.credits;
+    programOfStudy.totalCredits -= removedCredits;
+
+    if (courseToDelete.subject === "CS") {
+      programOfStudy.csCredits -= removedCredits;
+    } else if (courseToDelete.subject === "CEG") {
+      programOfStudy.cegCredits -= removedCredits;
+    }
+
+    if (courseToDelete.course.startsWith("7") || courseToDelete.course.startsWith("8")) {
+      programOfStudy.upperLevelCredits -= removedCredits;
+    } else if (courseToDelete.course.startsWith("6")) {
+      programOfStudy.lowerLevelCredits -= removedCredits;
+    }
+
+    // Save the updated program of study
+    await programOfStudy.save();
+
+    // Update the course details (increment available seats)
+    const sectionRemaining = parseInt(courseToDelete.sectionRemaining, 10) || 0;
+    const sectionActual = parseInt(courseToDelete.sectionActual, 10) || 0;
+
+    await Course.findByIdAndUpdate(courseObjectId, {
+      $set: {
+        sectionRemaining: sectionRemaining + 1,
+        sectionActual: sectionActual - 1,
+      },
+    });
+
+    logger.info(`Successfully deleted course ${courseId} for user ID: ${userId}`);
+    return res.status(200).json({
+      status: "success",
+      message: "Course deleted successfully",
+    });
+  } catch (error) {
+    logger.error(`Error deleting course for user ID: ${userId}`, { error: error.message });
+    return res.status(500).json({
+      status: "failure",
+      message: "Internal server error",
+    });
+  }
+};
+
+

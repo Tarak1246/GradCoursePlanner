@@ -14,6 +14,7 @@ export const Navbar = () => {
 
   const handleLogout = () => {
     authLogout(); // Reset the authentication state
+    localStorage.clear(); // Clear the local storage
     navigate("/"); // Redirect to the login page
   };
   const [isOpen, setIsOpen] = useState(false);
@@ -45,7 +46,7 @@ export const Navbar = () => {
               </a>
             </li>
             <li className="dropdown">
-              <a>
+              <a onClick={toggleDropdown}>
                 <button onClick={toggleDropdown} className="dropdown-btn">
                   <img
                     src={profile_logo}
@@ -58,10 +59,15 @@ export const Navbar = () => {
               {isOpen && (
                 <div className="dropdown-menu">
                   <div className="dropdown-item">
+                    {localStorage.getItem("loginUser")}
+                  </div>
+                  <div className="dropdown-item">
                     {localStorage.getItem("loginUserEmail")}
                   </div>
                   <div className="dropdown-item">Graduate Student</div>
-                  <div className="dropdown-item logout" onClick={handleLogout}>
+                  <div
+                    className="dropdown-item logout"
+                    onClick={() => handleLogout()}>
                     Logout
                   </div>
                 </div>

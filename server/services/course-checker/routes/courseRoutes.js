@@ -8,7 +8,8 @@ const {
   getEnumValues,
   registerCourse,
   getProgramOfStudy,
-  updateCourseCompletion
+  updateCourseCompletion,
+  deleteCourse
 } = require("../controllers/courseController");
 const {
   verifyAdmin,
@@ -42,5 +43,6 @@ router.get("/register-course/:courseId", registerCourse);
 // Get course details by course ID
 router.get("/:courseId", getCourseDetails);
 
+router.delete("/:courseId", deleteCourse);
 
 module.exports = router;

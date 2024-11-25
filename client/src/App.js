@@ -18,10 +18,9 @@ import PrivateRoute from "./Components/AuthContext/PrivateRoute";
 import { AuthProvider } from "./Components/AuthContext/AuthContext";
 import Dashboard from "./Components/Dashboard/Dashboard";
 import Layout from "./Components/Layout/Layout";
+import Program from "./Components/Program/Program";
 
 const App = () => {
-  localStorage.setItem("isUserLoginIn", false);
-  console.warn(localStorage.getItem("isUserLoginIn"));
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const handleLogin = () => setIsLoggedIn(true);
@@ -67,13 +66,9 @@ const App = () => {
                   </PrivateRoute>
                 }
               />
-              <Route
-                path="program-of-study"
-                element={
-                  <PrivateRoute isLoggedIn={isLoggedIn}>
-                    <DragAndDropCourse />
-                  </PrivateRoute>
-                }
+              <Route 
+                path="program-of-study" 
+                element={<PrivateRoute isLoggedIn={isLoggedIn}><Program /></PrivateRoute>} 
               />
             </Route>
 

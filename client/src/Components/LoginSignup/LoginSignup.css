@@ -65,6 +65,15 @@
     font-family: Roboto, Arial, Helvetica, sans-serif;
     
 }
+.submit-container{
+    padding-left: 129px;
+}
+
+.signup{
+    border: 1px solid #b7b7b7;
+    color: black;
+    background: white;
+}
 
 .error{
     color: #cf4849;

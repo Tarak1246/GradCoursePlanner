@@ -10,7 +10,6 @@ const Subject = ({ courses, onBack }) => {
     courses.map((course) => ({ id: course._id, title: course.title }))
   );
 
-  console.log(courses.map((course) => course));
   const [subjectDetails, setSubjectDetails] = useState(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [selectedSubjects, setSelectedSubjects] = useState([]);
@@ -99,7 +98,6 @@ const Subject = ({ courses, onBack }) => {
         ],
         errors: [],
       };
-      console.log(data);
 
       if (data.courseCheck.isValid === false) {
         toggleDialog("error", true, { message: data.courseCheck.message });
@@ -272,8 +270,6 @@ const Subject = ({ courses, onBack }) => {
       </div>
     );
   };
-
-  console.log(subjectDetails);
 
   return (
     <>

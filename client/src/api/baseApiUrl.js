@@ -2,7 +2,6 @@
 import axios from "axios";
 
 const baseApiUrl = "http://localhost:4000/api";
-const jwtToken = localStorage.getItem("jwtToken");
 
 /**
  * @function loginUser
@@ -15,9 +14,10 @@ export const loginUser = async (userData) => {
   try {
     console.warn(userData);
     const response = await axios.post(`${baseApiUrl}/auth/signin`, userData);
-    return response.data;
+
+    return response;
   } catch (error) {
-    throw new Error(`Error user login: ${error.message}`);
+    throw new Error(`Error user login: ${error.response.data.message}`);
   }
 };
 /**
@@ -30,15 +30,17 @@ export const loginUser = async (userData) => {
 export const signupUser = async (userData) => {
   try {
     const response = await axios.post(`${baseApiUrl}/auth/signup`, userData);
-    return response.data;
+
+    return response;
   } catch (error) {
-    throw new Error(`Error user register: ${error.message}`);
+    throw new Error(`Error user register: ${error.response.data.message}`);
   }
 };
 
 // function to get data for list of course based on area of interest
 export const fetchAreaOfInterestData = async (setAreasOfInterest, setError) => {
   try {
+    const jwtToken = localStorage.getItem("jwtToken");
     const response = await axios.get(`${baseApiUrl}/courses/all`, {
       headers: {
         Authorization: `Bearer ${jwtToken}`,
@@ -62,9 +64,6 @@ export const handleCourseClick = async (
     setIsModalOpen(true);
 
     const authToken = localStorage.getItem("jwtToken");
-
-    console.log(localStorage.getItem("jwtToken"));
-
     const response = await axios.post(
       `${baseApiUrl}/courses/filter-courses`,
       { title: course },
@@ -78,9 +77,23 @@ export const handleCourseClick = async (
 
     setCourseDetails(response.data);
   } catch (error) {
-    console.error(error);
     setCourseDetails({
       error: error.response?.data?.message || error.message,
     });
+  }
+};
+
+export const programData = async () => {
+  try {
+    const authToken = localStorage.getItem("jwtToken");
+    const response = await axios.get(`${baseApiUrl}/courses/program-of-study`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(`Error user Program of study: ${error.message}`);
   }
 };
