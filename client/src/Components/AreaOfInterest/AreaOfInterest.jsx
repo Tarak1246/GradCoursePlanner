@@ -10,7 +10,6 @@ const AreaOfInterest = () => {
   const [areasOfInterest, setAreasOfInterest] = useState({});
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState(null);
   const [courseDetails, setCourseDetails] = useState(null);
 
   useEffect(() => {
@@ -19,7 +18,6 @@ const AreaOfInterest = () => {
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setSelectedCourse(null);
     setCourseDetails(null);
   };
 
@@ -62,7 +60,6 @@ const AreaOfInterest = () => {
                       onClick={() =>
                         handleCourseClick(
                           course,
-                          setSelectedCourse,
                           setIsModalOpen,
                           setCourseDetails
                         )

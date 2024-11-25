@@ -54,12 +54,11 @@ export const fetchAreaOfInterestData = async (setAreasOfInterest, setError) => {
 
 export const handleCourseClick = async (
   course,
-  setSelectedCourse,
+
   setIsModalOpen,
   setCourseDetails
 ) => {
   try {
-    setSelectedCourse(course);
     setIsModalOpen(true);
 
     const authToken = localStorage.getItem("jwtToken");

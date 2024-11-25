@@ -52,7 +52,7 @@ export const Navbar = () => {
                     alt="Profile"
                     className="profile-icon"
                   />
-                  Akshay
+                  {localStorage.getItem("loginUser")}
                 </button>
               </a>
               {isOpen && (
@@ -61,9 +61,7 @@ export const Navbar = () => {
                     {localStorage.getItem("loginUserEmail")}
                   </div>
                   <div className="dropdown-item">Graduate Student</div>
-                  <div
-                    className="dropdown-item logout"
-                    onClick={() => alert("Logged out!")}>
+                  <div className="dropdown-item logout" onClick={handleLogout}>
                     Logout
                   </div>
                 </div>

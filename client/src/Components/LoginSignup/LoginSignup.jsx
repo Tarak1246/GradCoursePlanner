@@ -55,8 +55,8 @@ export const LoginSignup = ({ onLogin }) => {
       console.log("hit signin function");
 
       let userData = await loginUser(item);
-      console.log(userData.token);
-      localStorage.setItem("loginUser", userData?.user?.username);
+      console.log(userData);
+      localStorage.setItem("loginUser", userData?.user?.name);
       localStorage.setItem("loginUserEmail", userData?.user?.email);
       localStorage.setItem("jwtToken", userData?.token);
       localStorage.setItem("isUserLoginIn", true);

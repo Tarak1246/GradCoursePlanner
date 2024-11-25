@@ -1,281 +1,347 @@
-import React, { useState } from "react";
-import { Trash2 } from "lucide-react";
-import { Alert, AlertDescription } from "../Alert/alert";
+import React, { useState, useEffect, useRef } from "react";
+import Subject from "./Subject";
 
-const DragAndDropCourse = () => {
-  const [subjects] = useState([
-    "Distributed Computing",
-    "Advanced Wireless Network",
-    "Advanced Computer Network",
-    "Advanced Design and Algorithm",
-    "Computer Science I",
-    "Quantum Computing",
-    "Quantum Algorithm",
-  ]);
+// Utility function for class names
+const cn = (...classes) => classes.filter(Boolean).join(" ");
 
-  // Define prerequisites for subjects
-  const prerequisites = {
-    "Distributed Computing": ["Computer Science I"],
-    "Advanced Wireless Network": [
-      "Computer Science I",
-      "Advanced Computer Network",
-    ],
-    "Quantum Algorithm": ["Quantum Computing"],
-    "Advanced Design and Algorithm": ["Computer Science I"],
-  };
+// Custom MultiSelect Component
+const MultiSelect = ({ label, value = [], onChange, options, placeholder }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
-  const [selectedSubjects, setSelectedSubjects] = useState([]);
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showPrereqDialog, setShowPrereqDialog] = useState(false);
-  const [lastAddedSubject, setLastAddedSubject] = useState("");
-  const [subjectToDelete, setSubjectToDelete] = useState("");
-  const [prerequisiteMessage, setPrerequisiteMessage] = useState("");
-  const [showAlert, setShowAlert] = useState(false);
-  const [alertMessage, setAlertMessage] = useState("");
-
-  const handleDragStart = (e, subject) => {
-    e.dataTransfer.setData("subject", subject);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
-  const checkPrerequisites = (subject) => {
-    if (prerequisites[subject]) {
-      const missingPrereqs = prerequisites[subject].filter(
-        (prereq) => !selectedSubjects.includes(prereq)
-      );
-
-      if (missingPrereqs.length > 0) {
-        setPrerequisiteMessage(
-          `Before taking ${subject}, you need to complete: ${missingPrereqs.join(
-            ", "
-          )}`
-        );
-        return false;
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
       }
-    }
-    return true;
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toggleOption = (option) => {
+    const newValue = value.includes(option)
+      ? value.filter((item) => item !== option)
+      : [...value, option];
+    onChange(newValue);
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    const subject = e.dataTransfer.getData("subject");
-
-    if (!selectedSubjects.includes(subject)) {
-      if (checkPrerequisites(subject)) {
-        setSelectedSubjects([...selectedSubjects, subject]);
-        setLastAddedSubject(subject);
-        setShowAddDialog(true);
-      } else {
-        setShowPrereqDialog(true);
-      }
-    }
-  };
-
-  const handleDeleteClick = (subject) => {
-    // Check if this subject is a prerequisite for any currently selected subjects
-    const dependentSubjects = selectedSubjects.filter((selected) =>
-      prerequisites[selected]?.includes(subject)
-    );
-
-    if (dependentSubjects.length > 0) {
-      setAlertMessage(
-        `Cannot remove ${subject} as it is a prerequisite for: ${dependentSubjects.join(
-          ", "
-        )}`
-      );
-      setShowAlert(true);
-      return;
-    }
-
-    setSubjectToDelete(subject);
-    setShowDeleteDialog(true);
-  };
-
-  const confirmDelete = () => {
-    setSelectedSubjects(
-      selectedSubjects.filter((subject) => subject !== subjectToDelete)
-    );
-    setShowDeleteDialog(false);
-  };
-
-  const handleRegister = () => {
-    if (selectedSubjects.length === 0) {
-      setAlertMessage("Please select at least one subject before registering.");
-      setShowAlert(true);
-      return;
-    }
-
-    // Here you would typically make an API call to save the registration
-    console.log("Registering subjects:", selectedSubjects);
-    setAlertMessage(
-      "Registration successful! Your selected subjects have been saved."
-    );
-    setShowAlert(true);
+  const handleSelectAll = () => {
+    onChange(value.length === options.length ? [] : [...options]);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Course Registration System
-          </h1>
-        </div>
-      </header>
-      <main>
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <div className="min-h-screen bg-gray-50 p-6">
-            <div className="max-w-6xl mx-auto space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Available Subjects */}
-                <div className="bg-white p-6 rounded-lg shadow">
-                  <h2 className="text-xl font-semibold mb-4">
-                    Available Subjects
-                  </h2>
-                  <div className="space-y-2">
-                    {subjects.map((subject) => (
-                      <div
-                        key={subject}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, subject)}
-                        className="p-3 bg-gray-50 rounded cursor-move hover:bg-gray-100 transition-colors">
-                        {subject}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+    <div className="relative w-full" ref={dropdownRef}>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          "relative w-full bg-white rounded-lg pl-3 pr-10 py-2 text-left",
+          "border border-gray-300 focus:outline-none focus:ring-2",
+          "focus:ring-blue-500 focus:border-blue-500",
+          "cursor-pointer text-sm min-h-[40px]"
+        )}>
+        {value.length === 0 ? (
+          <span className="text-gray-400">{placeholder}</span>
+        ) : (
+          <span className="text-gray-900">
+            {value.length === 1 ? value[0] : `${value.length} selected`}
+          </span>
+        )}
+        <span className="absolute inset-y-0 right-0 flex items-center pr-2">
+          <svg
+            className={cn(
+              "h-5 w-5 text-gray-400 transition-transform duration-200",
+              isOpen ? "transform rotate-180" : ""
+            )}
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor">
+            <path
+              fillRule="evenodd"
+              d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </span>
+      </button>
 
-                {/* Selected Subjects */}
-                <div
-                  className="bg-white p-6 rounded-lg shadow border-2 border-dashed border-gray-300"
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop}>
-                  <h2 className="text-xl font-semibold mb-4">
-                    Selected Subjects
-                  </h2>
-                  <div className="space-y-2 min-h-48">
-                    {selectedSubjects.map((subject) => (
-                      <div
-                        key={subject}
-                        className="p-3 bg-gray-50 rounded flex justify-between items-center">
-                        <span>{subject}</span>
-                        <button
-                          onClick={() => handleDeleteClick(subject)}
-                          className="text-red-500 hover:text-red-700">
-                          <Trash2 size={20} />
-                        </button>
-                      </div>
-                    ))}
-                    {selectedSubjects.length === 0 && (
-                      <div className="text-gray-400 text-center py-8">
-                        Drag and drop subjects here
-                      </div>
-                    )}
-                  </div>
-                </div>
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white rounded-lg shadow-lg max-h-60 overflow-auto">
+          <div className="py-1">
+            <button
+              onClick={handleSelectAll}
+              className="w-full px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100 border-b border-gray-200">
+              {value.length === options.length ? "Deselect All" : "Select All"}
+            </button>
+            {options.map((option, index) => (
+              <div
+                key={index}
+                className="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => toggleOption(option)}>
+                <input
+                  type="checkbox"
+                  checked={value.includes(option)}
+                  onChange={() => {}}
+                  className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                />
+                <span className="ml-3 text-sm text-gray-700">{option}</span>
               </div>
-
-              {/* Register Button */}
-              <div className="flex justify-center">
-                <button
-                  onClick={handleRegister}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  Register Subjects
-                </button>
-              </div>
-
-              {/* Alert */}
-              {showAlert && (
-                <Alert
-                  className="mt-4"
-                  variant={
-                    alertMessage.includes("successful")
-                      ? "default"
-                      : "destructive"
-                  }>
-                  <AlertDescription>{alertMessage}</AlertDescription>
-                </Alert>
-              )}
-
-              {/* Add Subject Dialog */}
-              {showAddDialog && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                  <div className="bg-white p-6 rounded-lg max-w-md w-full">
-                    <h3 className="text-lg font-semibold mb-2">
-                      Subject Added Successfully
-                    </h3>
-                    <p>
-                      You have successfully added{" "}
-                      <strong>{lastAddedSubject}</strong> to your selected
-                      subjects.
-                    </p>
-                    <div className="mt-4 flex justify-end">
-                      <button
-                        onClick={() => setShowAddDialog(false)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        OK
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Prerequisite Warning Dialog */}
-              {showPrereqDialog && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                  <div className="bg-white p-6 rounded-lg max-w-md w-full">
-                    <h3 className="text-lg font-semibold mb-2">
-                      Prerequisites Required
-                    </h3>
-                    <p>{prerequisiteMessage}</p>
-                    <div className="mt-4 flex justify-end">
-                      <button
-                        onClick={() => setShowPrereqDialog(false)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        OK
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Delete Confirmation Dialog */}
-              {showDeleteDialog && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                  <div className="bg-white p-6 rounded-lg max-w-md w-full">
-                    <h3 className="text-lg font-semibold mb-2">
-                      Confirm Deletion
-                    </h3>
-                    <p>
-                      Are you sure you want to remove{" "}
-                      <strong>{subjectToDelete}</strong> from your selected
-                      subjects?
-                    </p>
-                    <div className="mt-4 flex justify-end space-x-2">
-                      <button
-                        onClick={() => setShowDeleteDialog(false)}
-                        className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
-                        Cancel
-                      </button>
-                      <button
-                        onClick={confirmDelete}
-                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            ))}
           </div>
         </div>
-      </main>
+      )}
+
+      {value.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {value.map((selected, index) => (
+            <span
+              key={index}
+              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              {selected}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleOption(selected);
+                }}
+                className="ml-1.5 inline-flex items-center justify-center flex-shrink-0 h-4 w-4 rounded-full text-blue-600 hover:bg-blue-200 hover:text-blue-900 focus:outline-none">
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
 
-export default DragAndDropCourse;
+// Custom Button Component
+const Button = ({ children, onClick, className = "", isFullWidth = false }) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      "bg-blue-600 text-white rounded-lg px-4 py-2",
+      "hover:bg-blue-700 focus:outline-none focus:ring-2",
+      "focus:ring-blue-500 focus:ring-offset-2",
+      "transition-colors duration-200",
+      isFullWidth ? "w-full" : "",
+      className
+    )}>
+    {children}
+  </button>
+);
+
+// Custom Alert Component
+const Alert = ({ message, type = "error" }) => {
+  const bgColor = type === "error" ? "bg-red-50" : "bg-blue-50";
+  const textColor = type === "error" ? "text-red-700" : "text-blue-700";
+  const borderColor = type === "error" ? "border-red-400" : "border-blue-400";
+
+  return message ? (
+    <div
+      className={cn("rounded-lg p-4 border", bgColor, textColor, borderColor)}>
+      {message}
+    </div>
+  ) : null;
+};
+
+// Main Component
+
+const DragAndDropCourses = () => {
+  const [enumValues, setEnumValues] = useState(null);
+  const [filters, setFilters] = useState({});
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [courses, setCourses] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSubject, setShowSubject] = useState(false); // New state to toggle views
+
+  useEffect(() => {
+    fetchEnumValues();
+  }, []);
+
+  const fetchEnumValues = async () => {
+    try {
+      setIsLoading(true);
+      const jwtToken = localStorage.getItem("jwtToken");
+      const response = await fetch(
+        "http://localhost:4000/api/courses/enum-values",
+        {
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch enum values");
+      }
+
+      const data = await response.json();
+      const values = data.values;
+
+      const initialFilters = Object.keys(values).reduce((acc, key) => {
+        acc[key] = [];
+        return acc;
+      }, {});
+
+      setEnumValues(values);
+      setFilters(initialFilters);
+    } catch (error) {
+      setError("Failed to load filter options. Please try again later.");
+      console.error("Error fetching enum values:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+    setError("");
+  };
+
+  const handleReset = () => {
+    const resetFilters = Object.keys(filters).reduce((acc, key) => {
+      acc[key] = [];
+      return acc;
+    }, {});
+    setFilters(resetFilters);
+    setCourses([]);
+    setError("");
+  };
+
+  const handleSearch = async () => {
+    const isAnyFilterSelected = Object.values(filters).some(
+      (value) => value.length > 0
+    );
+
+    if (!isAnyFilterSelected) {
+      setError("Please select at least one filter option.");
+
+      return;
+    }
+
+    try {
+      setIsSearching(true);
+      setError("");
+
+      const requestBody = Object.entries(filters).reduce(
+        (acc, [key, value]) => {
+          if (value.length > 0) {
+            acc[key] = value;
+          }
+          return acc;
+        },
+        {}
+      );
+
+      const jwtToken = localStorage.getItem("jwtToken");
+      const response = await fetch(
+        "http://localhost:4000/api/courses/filter-courses",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${jwtToken}`,
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch filtered courses");
+      }
+
+      const data = await response.json();
+      setCourses(data.values);
+      setShowSubject(true); // Show Subject component after search
+    } catch (error) {
+      setError("Failed to fetch courses. Please try again.");
+      console.error("Error fetching filtered courses:", error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleBack = () => {
+    setShowSubject(false); // Show filter UI when going back
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (showSubject) {
+    return <Subject courses={courses} onBack={handleBack} />;
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto">
+      <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+        <div className="p-8">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Course Filter</h2>
+            <p className="mt-1 text-gray-600">
+              Select multiple criteria to filter available courses
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            {enumValues &&
+              Object.keys(enumValues).map((topic) => (
+                <MultiSelect
+                  key={topic}
+                  label={topic.charAt(0).toUpperCase() + topic.slice(1)}
+                  value={filters[topic]}
+                  onChange={(value) => handleFilterChange(topic, value)}
+                  options={enumValues[topic]}
+                  placeholder={`Select ${topic}`}
+                />
+              ))}
+
+            {error && <Alert message={error} type="error" />}
+
+            <div className="flex gap-4">
+              <Button
+                onClick={handleSearch}
+                isFullWidth
+                className={isSearching ? "opacity-70 cursor-not-allowed" : ""}
+                disabled={isSearching}>
+                {isSearching ? (
+                  <span className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    Searching...
+                  </span>
+                ) : (
+                  "Search Courses"
+                )}
+              </Button>
+              <Button
+                onClick={handleReset}
+                className="bg-gray-500 hover:bg-gray-600"
+                isFullWidth
+                disabled={isSearching}>
+                Reset Filters
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DragAndDropCourses;
