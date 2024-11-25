@@ -1008,13 +1008,13 @@ exports.getProgramOfStudy = async (req, res) => {
 
     const userObjectId = new mongoose.Types.ObjectId(userId);
 
-    // Fetch the program of study for the user with populated course details
+    // Fetch the program of study for the user with the required fields
     const programOfStudy = await ProgramOfStudy.findOne({
       userId: userObjectId,
     })
       .populate(
         "courses.courseId",
-        "title credits semester year attribute days time instructor"
+        "crn subject course title credits semester year attribute days time instructor"
       )
       .lean();
 
@@ -1026,6 +1026,16 @@ exports.getProgramOfStudy = async (req, res) => {
       });
     }
 
+    // Transform the response to include only courseId as a string
+    programOfStudy.courses = programOfStudy.courses.map((course) => {
+      const { courseId, ...rest } = course;
+      return {
+        ...rest,
+        courseId: courseId?._id?.toString() || null, // Include only the courseId
+        ...courseId, // Merge the populated fields from the courseId
+      };
+    });
+
     logger.info(`Program of study fetched successfully for user ID: ${userId}`);
     return res.status(200).json({
       status: "success",
@@ -1034,12 +1044,8 @@ exports.getProgramOfStudy = async (req, res) => {
     });
   } catch (error) {
     logger.error(
-      `Error fetching program of study for user ID: ${
-        req?.user?.id || "unknown"
-      }`,
-      {
-        error: error.message,
-      }
+      `Error fetching program of study for user ID: ${req?.user?.id || "unknown"}`,
+      { error: error.message }
     );
     return res.status(500).json({
       status: "failure",
@@ -1047,3 +1053,5 @@ exports.getProgramOfStudy = async (req, res) => {
     });
   }
 };
+
+
