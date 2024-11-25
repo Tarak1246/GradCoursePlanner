@@ -945,6 +945,7 @@ exports.registerCourse = async (req, res) => {
         $set: {
           sectionRemaining: sectionRemaining - 1,
           sectionActual: sectionActual + 1,
+          ...(sectionRemaining - 1 === 0 && { status: "closed" }), // Close the course if no seats remaining
         },
       },
       { new: true }
@@ -992,6 +993,17 @@ exports.registerCourse = async (req, res) => {
     logger.info(
       `Successfully registered course ${courseId} for user ID: ${userId}`
     );
+
+    if (programOfStudy.totalCredits >= 30) {
+      logger.info(
+        `Total credits limit of 30 reached for user ID: ${userId}`
+      );
+      return res.status(200).json({
+        status: "success",
+        message: "Course registered successfully. Graduation limit credits reached.",
+      });
+    }
+
     return res.status(200).json({
       status: "success",
       message: "Course registered successfully",
