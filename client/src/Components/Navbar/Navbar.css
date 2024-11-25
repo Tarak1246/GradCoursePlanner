@@ -41,6 +41,7 @@ ul li {
   border-radius: 5px;
   cursor: pointer;
   outline: none;
+  padding: 0px;
 }
 
 .profile-icon {

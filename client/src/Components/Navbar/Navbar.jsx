@@ -46,7 +46,7 @@ export const Navbar = () => {
               </a>
             </li>
             <li className="dropdown">
-              <a>
+              <a onClick={toggleDropdown}>
                 <button onClick={toggleDropdown} className="dropdown-btn">
                   <img
                     src={profile_logo}
@@ -66,7 +66,7 @@ export const Navbar = () => {
                   <div className="dropdown-item">Graduate Student</div>
                   <div
                     className="dropdown-item logout"
-                    onClick={() => handleLogout}>
+                    onClick={() => handleLogout()}>
                     Logout
                   </div>
                 </div>

@@ -81,4 +81,24 @@ export const handleCourseClick = async (
       error: error.response?.data?.message || error.message,
     });
   }
+
+  
+};
+
+export const programData = async () => {
+  try {
+    const authToken = localStorage.getItem("jwtToken");
+    const response = await axios.get(
+      `${baseApiUrl}/courses/program-of-study`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Error user Program of study: ${error.message}`);
+  }
 };
