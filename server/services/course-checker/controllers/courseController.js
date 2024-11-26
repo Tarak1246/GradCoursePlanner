@@ -948,6 +948,8 @@ exports.registerCourses = async (req, res) => {
         // Check for available seats
         const sectionRemaining =
           parseInt(courseToRegister.sectionRemaining, 10) || 0;
+        
+        const sectionActual = parseInt(courseToRegister.sectionActual, 10) || 0;
 
         if (sectionRemaining <= 0) {
           results.push({
@@ -1009,6 +1011,7 @@ exports.registerCourses = async (req, res) => {
           courseObjectId,
           {
             $set: {
+              sectionActual: sectionActual + 1,
               sectionRemaining: sectionRemaining - 1,
               ...(sectionRemaining - 1 === 0 && { status: "closed" }),
             },
@@ -1257,6 +1260,9 @@ exports.deleteCourse = async (req, res) => {
       programOfStudy.lowerLevelCredits -= removedCredits;
     }
 
+    // Update the overall completion status if totalCredits is less than 30
+    programOfStudy.completionStatus = programOfStudy.totalCredits >= 30 ? "Completed" : "In Progress";
+
     // Save the updated program of study
     await programOfStudy.save();
 
@@ -1268,6 +1274,7 @@ exports.deleteCourse = async (req, res) => {
       $set: {
         sectionRemaining: sectionRemaining + 1,
         sectionActual: sectionActual - 1,
+        ...(sectionRemaining + 1 > 0 && { status: "open" }), // Reopen the course if seats become available
       },
     });
 
