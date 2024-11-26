@@ -510,8 +510,10 @@ exports.validateCourseSelection = async (req, res) => {
         { totalCredits: 0, ceg6000Credits: 0, coreCourseCount: 0 }
       );
 
-    if(totalCredits >= 30) {
-      logger.info(`Credits > 30. Expected credits for graduation reached for user ID: ${userId}`);
+    if (totalCredits >= 30) {
+      logger.info(
+        `Credits > 30. Expected credits for graduation reached for user ID: ${userId}`
+      );
       return res.status(400).json({
         status: "fulfilled",
         data: {
@@ -780,43 +782,22 @@ exports.updateCourseCompletion = async (req, res) => {
   }
 };
 
-exports.registerCourse = async (req, res) => {
+exports.registerCourses = async (req, res) => {
   try {
     const userId = req?.user?.id;
-    const { courseId } = req.params;
+    const { courseIds } = req.body; // Array of course IDs
 
-    if (!userId || !courseId) {
-      logger.warn("Missing required fields: userId or courseId");
+    if (!userId || !Array.isArray(courseIds) || courseIds.length === 0) {
+      logger.warn("Invalid input: userId or courseIds array is missing");
       return res.status(400).json({
         status: "failure",
-        message: "userId and courseId are required",
+        message: "userId and courseIds array are required",
       });
     }
 
     const userObjectId = new mongoose.Types.ObjectId(userId);
-    const courseObjectId = new mongoose.Types.ObjectId(courseId);
 
-    // Fetch the course to register
-    const courseToRegister = await Course.findById(courseObjectId).lean();
-    if (!courseToRegister) {
-      logger.warn(`Course not found with ID: ${courseId}`);
-      return res.status(404).json({
-        status: "failure",
-        message: "Course not found",
-      });
-    }
-
-    if (courseToRegister.status !== "open") {
-      logger.info(
-        `Course ${courseId} is not open for registration (Status: ${courseToRegister.status})`
-      );
-      return res.status(400).json({
-        status: "failure",
-        message: "This course is not open for registration",
-      });
-    }
-
-    // Check or create the program of study
+    // Fetch or create the program of study
     const programOfStudy = await ProgramOfStudy.findOneAndUpdate(
       { userId: userObjectId },
       {
@@ -830,186 +811,283 @@ exports.registerCourse = async (req, res) => {
           upperLevelCredits: 0,
           lowerLevelCredits: 0,
           independentStudyCredits: 0,
-          firstSemester: {},
+          firstSemester: {
+            semester: "",
+            year: "",
+          },
           completionStatus: "In Progress",
         },
       },
       { new: true, upsert: true }
     );
 
-    // Check for duplicate registration
-    if (
-      programOfStudy.courses.some(
-        (c) => c.courseId.toString() === courseId && c.status !== "Dropped"
-      )
-    ) {
-      logger.info(
-        `Course ${courseId} is already registered for user ID: ${userId}`
-      );
-      return res.status(400).json({
-        status: "failure",
-        message: "You have already registered for this course",
-      });
-    }
+    const coreCourses = ["7200", "7370", "7100", "7140"];
+    const results = [];
+    let updatedTotalCredits = programOfStudy.totalCredits;
+    let updatedCoreCredits = programOfStudy.coreCredits;
+    let updatedCsCredits = programOfStudy.csCredits;
+    let updatedCegCredits = programOfStudy.cegCredits;
+    let updatedUpperLevelCredits = programOfStudy.upperLevelCredits;
+    let updatedLowerLevelCredits = programOfStudy.lowerLevelCredits;
 
-    // Handle first semester restrictions
-    if (!programOfStudy.firstSemester.semester) {
-      // Set the first semester if not already defined
-      programOfStudy.firstSemester = {
-        semester: courseToRegister.semester,
-        year: courseToRegister.year,
-      };
-    } else if (
-      courseToRegister.semester === programOfStudy.firstSemester.semester &&
-      courseToRegister.year === programOfStudy.firstSemester.year
-    ) {
-      // Restrict to two courses in the first semester
-      const firstSemesterCourses = programOfStudy.courses.filter(
-        (c) =>
-          c.semesterTaken === programOfStudy.firstSemester.semester &&
-          c.yearTaken === programOfStudy.firstSemester.year
-      );
+    for (const courseId of courseIds) {
+      try {
+        // Stop registering if total credits have already reached 30
+        if (updatedTotalCredits >= 30) {
+          results.push({
+            courseId,
+            status: "failure",
+            reason: "Graduation limit credits reached (30 credits)",
+          });
+          continue;
+        }
 
-      if (firstSemesterCourses.length >= 2) {
-        logger.info(
-          `First semester course limit reached for user ID: ${userId}`
+        const courseObjectId = new mongoose.Types.ObjectId(courseId);
+
+        // Fetch the course to register
+        const courseToRegister = await Course.findById(courseObjectId).lean();
+        if (!courseToRegister) {
+          results.push({
+            courseId,
+            status: "failure",
+            reason: "Course not found",
+          });
+          continue;
+        }
+
+        if (courseToRegister.status !== "open") {
+          results.push({
+            courseId,
+            status: "failure",
+            reason: "Course is not open for registration",
+          });
+          continue;
+        }
+
+        // Check duplicate registration
+        if (
+          programOfStudy.courses.some(
+            (c) => c.courseId.toString() === courseId && c.status !== "Dropped"
+          )
+        ) {
+          results.push({
+            courseId,
+            status: "failure",
+            reason: "Course already registered",
+          });
+          continue;
+        }
+
+        // Map semesters to numeric values for proper comparison
+        const semesterOrder = {
+          spring: 1,
+          summer: 2,
+          fall: 3,
+        };
+
+        // Validate semester/year constraints
+        if (
+          programOfStudy?.firstSemester?.semester &&
+          programOfStudy?.firstSemester?.year
+        ) {
+          const firstSemesterYear = parseInt(
+            programOfStudy.firstSemester.year,
+            10
+          );
+          const firstSemesterValue =
+            semesterOrder[programOfStudy.firstSemester.semester];
+          const courseYear = parseInt(courseToRegister.year, 10);
+          const courseSemesterValue = semesterOrder[courseToRegister.semester];
+
+          if (
+            courseYear < firstSemesterYear ||
+            (courseYear === firstSemesterYear &&
+              courseSemesterValue < firstSemesterValue)
+          ) {
+            results.push({
+              courseId,
+              status: "failure",
+              reason:
+                "Course semester/year must be equal or greater than the first semester and year",
+            });
+            continue;
+          }
+        }
+
+        // Handle first semester and other semester restrictions
+        const isFirstSemester =
+          courseToRegister.semester ===
+            programOfStudy?.firstSemester?.semester &&
+          courseToRegister.year === programOfStudy?.firstSemester?.year;
+
+        const semesterCourses = programOfStudy.courses.filter(
+          (c) =>
+            c.status !== "Dropped" &&
+            c.semesterTaken === courseToRegister.semester &&
+            c.yearTaken === courseToRegister.year
         );
-        return res.status(400).json({
+
+        if (isFirstSemester && semesterCourses.length >= 2) {
+          results.push({
+            courseId,
+            status: "failure",
+            reason: "First semester limit of 2 courses reached",
+          });
+          continue;
+        }
+
+        if (!isFirstSemester && semesterCourses.length >= 3) {
+          results.push({
+            courseId,
+            status: "failure",
+            reason: "Semester limit of 3 courses reached",
+          });
+          continue;
+        }
+
+        // Check for available seats
+        const sectionRemaining =
+          parseInt(courseToRegister.sectionRemaining, 10) || 0;
+
+        if (sectionRemaining <= 0) {
+          results.push({
+            courseId,
+            status: "failure",
+            reason: "No remaining seats for the course",
+          });
+          continue;
+        }
+
+        // Check for schedule conflicts
+        if (courseToRegister.attribute === "Face-to-Face") {
+          const conflictingCourse = programOfStudy.courses.find((c) => {
+            if (!c.courseId) return false;
+            // Exclude "Dropped" courses
+            if (c.status !== "Planned" && c.status !== "Completed")
+              return false;
+
+            const isSameSemester =
+              c.semesterTaken === courseToRegister.semester &&
+              c.yearTaken === courseToRegister.year;
+
+            const isSameDays = c.days === courseToRegister.days;
+            const isSameAttribute = c.attribute === courseToRegister.attribute;
+
+            if (!isSameSemester || !isSameDays || !isSameAttribute)
+              return false;
+
+            const [startA, endA] = courseToRegister.time
+              .split("-")
+              .map((time) => {
+                const [hours, minutes] = time.split(":").map(Number);
+                return hours * 60 + minutes;
+              });
+            const [startB, endB] = c.time.split("-").map((time) => {
+              const [hours, minutes] = time.split(":").map(Number);
+              return hours * 60 + minutes;
+            });
+
+            return (
+              (startA >= startB && startA < endB) ||
+              (endA > startB && endA <= endB) ||
+              (startA <= startB && endA >= endB)
+            );
+          });
+
+          if (conflictingCourse) {
+            results.push({
+              courseId,
+              status: "failure",
+              reason: "This course conflicts with another registered course",
+            });
+            continue;
+          }
+        }
+
+        // Update course seat counts and status if needed
+        const updatedCourse = await Course.findByIdAndUpdate(
+          courseObjectId,
+          {
+            $set: {
+              sectionRemaining: sectionRemaining - 1,
+              ...(sectionRemaining - 1 === 0 && { status: "closed" }),
+            },
+          },
+          { new: true }
+        );
+
+        if (!updatedCourse) {
+          results.push({
+            courseId,
+            status: "failure",
+            reason: "Failed to update course seat counts",
+          });
+          continue;
+        }
+
+        // Update program of study details
+        const credits = parseInt(courseToRegister.credits, 10) || 0;
+        updatedTotalCredits += credits;
+        updatedCoreCredits += coreCourses.includes(courseToRegister.course)
+          ? credits
+          : 0;
+        updatedCsCredits += courseToRegister.subject === "CS" ? credits : 0;
+        updatedCegCredits += courseToRegister.subject === "CEG" ? credits : 0;
+        updatedUpperLevelCredits +=
+          courseToRegister.course.startsWith("7") ||
+          courseToRegister.course.startsWith("8")
+            ? credits
+            : 0;
+        updatedLowerLevelCredits += courseToRegister.course.startsWith("6")
+          ? credits
+          : 0;
+
+        // Add to program of study courses
+        programOfStudy.courses.push({
+          courseId: courseObjectId,
+          status: "Planned",
+          semesterTaken: courseToRegister.semester,
+          yearTaken: courseToRegister.year,
+          credits,
+          days: courseToRegister.days,
+          time: courseToRegister.time,
+          attribute: courseToRegister.attribute,
+        });
+        programOfStudy.totalCredits = updatedTotalCredits;
+        programOfStudy.coreCredits = updatedCoreCredits;
+        programOfStudy.csCredits = updatedCsCredits;
+        programOfStudy.cegCredits = updatedCegCredits;
+        programOfStudy.upperLevelCredits = updatedUpperLevelCredits;
+        programOfStudy.lowerLevelCredits = updatedLowerLevelCredits;
+        programOfStudy.completionStatus =
+          updatedTotalCredits >= 30 ? "Completed" : "In Progress";
+
+        await programOfStudy.save();
+
+        results.push({
+          courseId,
+          status: "success",
+          message: "Course registered successfully",
+        });
+      } catch (err) {
+        logger.error(`Error registering course ${courseId}: ${err.message}`);
+        results.push({
+          courseId,
           status: "failure",
-          message:
-            "You can only register for two courses in your first semester.",
+          reason: "Unexpected error occurred",
         });
       }
-    }
-
-    // Check for schedule conflicts
-    if (courseToRegister.attribute === "Face-to-Face") {
-      const conflictingCourse = programOfStudy.courses.find((c) => {
-        if (!c.courseId) return false;
-
-        const isSameSemester =
-          c.semesterTaken === courseToRegister.semester &&
-          c.yearTaken === courseToRegister.year;
-
-        const isSameDays = c.days === courseToRegister.days;
-        const isSameAttribute = c.attribute === courseToRegister.attribute;
-
-        if (!isSameSemester || !isSameDays || !isSameAttribute) return false;
-
-        const [startA, endA] = courseToRegister.time.split("-").map((time) => {
-          const [hours, minutes] = time.split(":").map(Number);
-          return hours * 60 + minutes;
-        });
-        const [startB, endB] = c.time.split("-").map((time) => {
-          const [hours, minutes] = time.split(":").map(Number);
-          return hours * 60 + minutes;
-        });
-
-        return (
-          (startA >= startB && startA < endB) ||
-          (endA > startB && endA <= endB) ||
-          (startA <= startB && endA >= endB)
-        );
-      });
-
-      if (conflictingCourse) {
-        logger.info(
-          `Course ${courseId} conflicts with another registered course for user ID: ${userId}`
-        );
-        return res.status(400).json({
-          status: "failure",
-          message: "This course conflicts with another registered course.",
-        });
-      }
-    }
-
-    // Check for available seats
-    const sectionRemaining =
-      parseInt(courseToRegister.sectionRemaining, 10) || 0;
-    const sectionActual = parseInt(courseToRegister.sectionActual, 10) || 0;
-
-    if (sectionRemaining <= 0) {
-      logger.info(
-        `Course ${courseId} has no remaining seats for user ID: ${userId}`
-      );
-      return res.status(400).json({
-        status: "failure",
-        message: "This course has no remaining seats",
-      });
-    }
-
-    // Update course seat counts
-    const updatedCourse = await Course.findByIdAndUpdate(
-      courseObjectId,
-      {
-        $set: {
-          sectionRemaining: sectionRemaining - 1,
-          sectionActual: sectionActual + 1,
-          ...(sectionRemaining - 1 === 0 && { status: "closed" }), // Close the course if no seats remaining
-        },
-      },
-      { new: true }
-    );
-
-    if (!updatedCourse) {
-      logger.error(
-        `Failed to update course details for course ID: ${courseId}`
-      );
-      return res.status(500).json({
-        status: "failure",
-        message: "Failed to register for the course. Please try again later.",
-      });
-    }
-
-    // Register the course in the program of study
-    programOfStudy.courses.push({
-      courseId: courseObjectId,
-      status: "Planned",
-      semesterTaken: courseToRegister.semester,
-      yearTaken: courseToRegister.year,
-      credits: parseInt(courseToRegister.credits, 10),
-      days: courseToRegister.days,
-      time: courseToRegister.time,
-      attribute: courseToRegister.attribute,
-    });
-
-    // Update total credits and other metrics
-    const credits = parseInt(courseToRegister.credits, 10) || 0;
-    programOfStudy.totalCredits += credits;
-    programOfStudy.csCredits += courseToRegister.subject === "CS" ? credits : 0;
-    programOfStudy.cegCredits +=
-      courseToRegister.subject === "CEG" ? credits : 0;
-    programOfStudy.upperLevelCredits +=
-      courseToRegister.course.startsWith("7") ||
-      courseToRegister.course.startsWith("8")
-        ? credits
-        : 0;
-    programOfStudy.lowerLevelCredits += courseToRegister.course.startsWith("6")
-      ? credits
-      : 0;
-
-    await programOfStudy.save();
-
-    logger.info(
-      `Successfully registered course ${courseId} for user ID: ${userId}`
-    );
-
-    if (programOfStudy.totalCredits >= 30) {
-      logger.info(
-        `Total credits limit of 30 reached for user ID: ${userId}`
-      );
-      return res.status(200).json({
-        status: "success",
-        message: "Course registered successfully. Graduation limit credits reached.",
-      });
     }
 
     return res.status(200).json({
       status: "success",
-      message: "Course registered successfully",
+      message: "Courses processed",
+      results,
     });
   } catch (error) {
-    logger.error("Error registering course:", { error: error.message });
+    logger.error("Error processing course registrations", {
+      error: error.message,
+    });
     return res.status(500).json({
       status: "failure",
       message: "Internal server error",
@@ -1067,7 +1145,9 @@ exports.getProgramOfStudy = async (req, res) => {
     });
   } catch (error) {
     logger.error(
-      `Error fetching program of study for user ID: ${req?.user?.id || "unknown"}`,
+      `Error fetching program of study for user ID: ${
+        req?.user?.id || "unknown"
+      }`,
       { error: error.message }
     );
     return res.status(500).json({
@@ -1101,7 +1181,9 @@ exports.deleteCourse = async (req, res) => {
     const userObjectId = new mongoose.Types.ObjectId(userId);
     const courseObjectId = new mongoose.Types.ObjectId(courseId);
 
-    logger.info(`Validating course removal for user ID: ${userId}, course ID: ${courseId}`);
+    logger.info(
+      `Validating course removal for user ID: ${userId}, course ID: ${courseId}`
+    );
 
     // Fetch the program of study and the course concurrently
     const [programOfStudy, courseToDelete] = await Promise.all([
@@ -1131,7 +1213,9 @@ exports.deleteCourse = async (req, res) => {
     );
 
     if (!courseInProgram) {
-      logger.warn(`Course ID ${courseId} not found in program of study for user ID: ${userId}`);
+      logger.warn(
+        `Course ID ${courseId} not found in program of study for user ID: ${userId}`
+      );
       return res.status(400).json({
         status: "failure",
         message: "Course not found in your program of study",
@@ -1140,7 +1224,9 @@ exports.deleteCourse = async (req, res) => {
 
     // Validate if the course is already completed
     if (courseInProgram.status === "Completed") {
-      logger.info(`Cannot delete completed course for user ID: ${userId}, course ID: ${courseId}`);
+      logger.info(
+        `Cannot delete completed course for user ID: ${userId}, course ID: ${courseId}`
+      );
       return res.status(400).json({
         status: "failure",
         message: "Cannot delete a completed course",
@@ -1162,7 +1248,10 @@ exports.deleteCourse = async (req, res) => {
       programOfStudy.cegCredits -= removedCredits;
     }
 
-    if (courseToDelete.course.startsWith("7") || courseToDelete.course.startsWith("8")) {
+    if (
+      courseToDelete.course.startsWith("7") ||
+      courseToDelete.course.startsWith("8")
+    ) {
       programOfStudy.upperLevelCredits -= removedCredits;
     } else if (courseToDelete.course.startsWith("6")) {
       programOfStudy.lowerLevelCredits -= removedCredits;
@@ -1182,18 +1271,20 @@ exports.deleteCourse = async (req, res) => {
       },
     });
 
-    logger.info(`Successfully deleted course ${courseId} for user ID: ${userId}`);
+    logger.info(
+      `Successfully deleted course ${courseId} for user ID: ${userId}`
+    );
     return res.status(200).json({
       status: "success",
       message: "Course deleted successfully",
     });
   } catch (error) {
-    logger.error(`Error deleting course for user ID: ${userId}`, { error: error.message });
+    logger.error(`Error deleting course for user ID: ${userId}`, {
+      error: error.message,
+    });
     return res.status(500).json({
       status: "failure",
       message: "Internal server error",
     });
   }
 };
-
-

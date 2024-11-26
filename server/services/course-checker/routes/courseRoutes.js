@@ -6,7 +6,7 @@ const {
   addOrModifyCourses,
   validateCourseSelection,
   getEnumValues,
-  registerCourse,
+  registerCourses,
   getProgramOfStudy,
   updateCourseCompletion,
   deleteCourse
@@ -39,7 +39,8 @@ router.post("/bulk", verifyAdmin, bulkUploadRateLimiter, addOrModifyCourses);
 
 router.get("/course-check/:courseId", validateCourseSelection);
 
-router.get("/register-course/:courseId", registerCourse);
+router.post("/register-courses", registerCourses);
+
 // Get course details by course ID
 router.get("/:courseId", getCourseDetails);
 
