@@ -5,11 +5,17 @@ import Subject from "./Subject";
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
 // Custom MultiSelect Component
-const MultiSelect = ({ label, value = [], onChange, options, placeholder }) => {
+const MultiSelect = ({
+  label,
+  value = [],
+  onChange,
+  options,
+  placeholder,
+  isSingleSelect = false,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -22,14 +28,22 @@ const MultiSelect = ({ label, value = [], onChange, options, placeholder }) => {
   }, []);
 
   const toggleOption = (option) => {
-    const newValue = value.includes(option)
-      ? value.filter((item) => item !== option)
-      : [...value, option];
-    onChange(newValue);
+    if (isSingleSelect) {
+      // If single-select, set only the selected option
+      onChange([option]);
+    } else {
+      // Default multi-select behavior
+      const newValue = value.includes(option)
+        ? value.filter((item) => item !== option)
+        : [...value, option];
+      onChange(newValue);
+    }
   };
 
   const handleSelectAll = () => {
-    onChange(value.length === options.length ? [] : [...options]);
+    if (!isSingleSelect) {
+      onChange(value.length === options.length ? [] : [...options]);
+    }
   };
 
   return (
@@ -74,11 +88,15 @@ const MultiSelect = ({ label, value = [], onChange, options, placeholder }) => {
       {isOpen && (
         <div className="absolute z-10 w-full mt-1 bg-white rounded-lg shadow-lg max-h-60 overflow-auto">
           <div className="py-1">
-            <button
-              onClick={handleSelectAll}
-              className="w-full px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100 border-b border-gray-200">
-              {value.length === options.length ? "Deselect All" : "Select All"}
-            </button>
+            {!isSingleSelect && (
+              <button
+                onClick={handleSelectAll}
+                className="w-full px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100 border-b border-gray-200">
+                {value.length === options.length
+                  ? "Deselect All"
+                  : "Select All"}
+              </button>
+            )}
             {options.map((option, index) => (
               <div
                 key={index}
@@ -89,6 +107,7 @@ const MultiSelect = ({ label, value = [], onChange, options, placeholder }) => {
                   checked={value.includes(option)}
                   onChange={() => {}}
                   className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  disabled={isSingleSelect}
                 />
                 <span className="ml-3 text-sm text-gray-700">{option}</span>
               </div>
@@ -139,16 +158,9 @@ const Button = ({ children, onClick, className = "", isFullWidth = false }) => (
 
 // Custom Alert Component
 const Alert = ({ message, type = "error" }) => {
-  const bgColor = type === "error" ? "bg-red-50" : "bg-blue-50";
   const textColor = type === "error" ? "text-red-700" : "text-blue-700";
-  const borderColor = type === "error" ? "border-red-400" : "border-blue-400";
 
-  return message ? (
-    <div
-      className={cn("rounded-lg p-4 border", bgColor, textColor, borderColor)}>
-      {message}
-    </div>
-  ) : null;
+  return message ? <div className={cn("p-4", textColor)}>{message}</div> : null;
 };
 
 // Main Component
@@ -195,7 +207,6 @@ const DragAndDropCourses = () => {
       setFilters(initialFilters);
     } catch (error) {
       setError("Failed to load filter options. Please try again later.");
-      console.error("Error fetching enum values:", error);
     } finally {
       setIsLoading(false);
     }
@@ -285,13 +296,13 @@ const DragAndDropCourses = () => {
   }
 
   if (showSubject) {
-    return <Subject courses={courses} onBack={handleBack} />;
+    return <Subject courses={courses} onBack={handleBack} filters={filters} />;
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-[56rem] mx-auto p-8">
       <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
-        <div className="p-8">
+        <div className="p-8 overflow-auto">
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Course Filter</h2>
             <p className="mt-1 text-gray-600">
@@ -309,6 +320,7 @@ const DragAndDropCourses = () => {
                   onChange={(value) => handleFilterChange(topic, value)}
                   options={enumValues[topic]}
                   placeholder={`Select ${topic}`}
+                  isSingleSelect={topic === "semester"}
                 />
               ))}
 

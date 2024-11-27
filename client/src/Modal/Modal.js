@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 
 const Modal = ({ title, sections, onClose }) => {
-  const [activeSection, setActiveSection] = useState(Object.keys(sections)[0]); // Default to the first section
+  const [activeSection, setActiveSection] = useState(Object.keys(sections)[0]);
 
   return (
     <>
@@ -18,7 +18,7 @@ const Modal = ({ title, sections, onClose }) => {
             <div>
               <button
                 onClick={onClose}
-                className="absolute top-3 right-3 text-gray-200 text-center text-[24px] hover:text-gray-900  bg-green-800 w-6 h-6 border pb-1 rounded flex justify-center items-center">
+                className="absolute top-3 right-3 text-gray-200 text-center text-[24px] hover:text-gray-900  bg-green-800 w-6 h-6 border rounded flex justify-center items-center">
                 &times;
               </button>
             </div>
