@@ -14,6 +14,16 @@ const feedbackSchema = new mongoose.Schema(
       required: true,
       index: true, // Optimized for queries
     },
+    course:{
+      type: String,
+      ref: "Course",
+      required: true,
+    },
+    title: {
+      type: String,
+      required: true,
+      ref: "Course"
+    },
     feedback: {
       type: String,
       required: false, // Feedback is optional

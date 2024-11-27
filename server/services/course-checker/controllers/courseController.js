@@ -92,6 +92,7 @@ exports.getAllCourses = async (req, res) => {
 exports.filterCourses = async (req, res) => {
   try {
     const filters = req.body;
+    const { title } = req.body;
 
     if (!filters || Object.keys(filters).length === 0) {
       logger.warn("No filters provided in the request");
@@ -135,11 +136,35 @@ exports.filterCourses = async (req, res) => {
       });
     }
 
-    logger.info(`Successfully fetched ${courses.length} courses`);
+    logger.info(`Fetched ${courses.length} courses. Attaching feedback...`);
+
+    // Attach feedback to each course
+    const coursesWithFeedback = await Promise.all(
+      courses.map(async (course) => {
+        // Fetch feedback for the course
+        const feedbacks = await Feedback.find({ courseId: course._id })
+          .populate("userId", "name") // Populate user details
+          .lean();
+
+        // Format the feedback array
+        const formattedFeedback = feedbacks.map((feedback) => ({
+          name: feedback.userId.name,
+          feedback: feedback.feedback,
+          semester: course.semester, // Semester from the course
+          year: course.year, // Year from the course
+          date: feedback.createdDate.toISOString().split("T")[0], // Date in YYYY-MM-DD format
+        }));
+
+        return { ...course, feedback: formattedFeedback };
+      })
+    );
+
+    logger.info(`Successfully fetched courses with feedback`);
+
     return res.status(200).json({
       status: "success",
       message: "Courses fetched successfully",
-      values: courses,
+      values: coursesWithFeedback,
     });
   } catch (error) {
     logger.error("Error fetching courses", { error: error.message });
@@ -149,6 +174,8 @@ exports.filterCourses = async (req, res) => {
     });
   }
 };
+
+
 
 exports.getCourseDetails = async (req, res) => {
   try {
@@ -197,7 +224,9 @@ exports.getCourseDetails = async (req, res) => {
       date: new Date(f.createdDate).toISOString().split("T")[0], // Extract only date from createdAt
     }));
 
-    logger.info(`Course details and feedback fetched successfully for ID: ${courseId}`);
+    logger.info(
+      `Course details and feedback fetched successfully for ID: ${courseId}`
+    );
     return res.status(200).json({
       status: "success",
       message: "Course details and feedback fetched successfully",
@@ -379,14 +408,17 @@ exports.addOrModifyCourses = async (req, res) => {
       });
 
       if (dbCourse && course.certificationRequirements.length > 0) {
-        console.log("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeedbCourse",dbCourse);
-        console.log("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeecourse",course);
+        console.log("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeedbCourse", dbCourse);
+        console.log("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeecourse", course);
         await Promise.all(
           course.certificationRequirements.map(async (certName) => {
-            console.log("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeecertName",certName);
+            console.log("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeecertName", certName);
             let certificate = await Certificate.findOne({ name: certName });
             if (certificate) {
-              console.log("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeecertificate",certificate);
+              console.log(
+                "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeecertificate",
+                certificate
+              );
               // Avoid duplicate course entries in the certificate
               const courseExists = certificate.requiredCourses.some(
                 (c) => c.courseId.toString() === dbCourse._id.toString()
@@ -513,8 +545,6 @@ exports.validateCourseSelection1 = async (req, res) => {
         },
       });
     }
-
-
 
     // Calculate total credits and specific limits
     const { totalCredits, ceg6000Credits, coreCourseCount } =
@@ -881,13 +911,14 @@ exports.getEnumValues = async (req, res) => {
 exports.updateCourseCompletion = async (req, res) => {
   try {
     const userId = req?.user?.id;
-    const { courseId, grade, marks, totalMarks, feedback } = req.body;
+    const { courseId, course, title, grade, marks, totalMarks, feedback } = req.body;
 
-    if (!userId || !courseId) {
-      logger.warn("Invalid input: userId or courseId is missing");
+    if (!userId || !courseId || !course || !title) {
+      logger.warn("Invalid input: userId, courseId, course, and title are required");
       return res.status(400).json({
+        statusCode: 400,
         status: "failure",
-        message: "userId and courseId are required",
+        message: "userId, courseId, course, and title are required",
       });
     }
 
@@ -904,6 +935,7 @@ exports.updateCourseCompletion = async (req, res) => {
     if (grade && !validGrades.includes(grade)) {
       logger.warn(`Invalid grade: ${grade} for courseId: ${courseId}`);
       return res.status(400).json({
+        statusCode: 400,
         status: "failure",
         message: `Invalid grade: ${grade}`,
       });
@@ -930,10 +962,11 @@ exports.updateCourseCompletion = async (req, res) => {
     }
 
     // Find the course in the program of study
-    const course = programOfStudy.courses.find(
+    const courseData = programOfStudy.courses.find(
       (c) => c.courseId.toString() === courseId
     );
-    if (!course) {
+
+    if (!courseData) {
       logger.warn(
         `CourseId: ${courseId} not found in program of study for userId: ${userId}`
       );
@@ -944,15 +977,15 @@ exports.updateCourseCompletion = async (req, res) => {
     }
 
     // Update course details
-    if (grade) course.grade = grade;
-    if (marks !== undefined) course.marks = marks;
-    if (totalMarks !== undefined) course.totalMarks = totalMarks;
-    course.status = "Completed";
+    if (grade) courseData.grade = grade;
+    if (marks !== undefined) courseData.marks = marks;
+    if (totalMarks !== undefined) courseData.totalMarks = totalMarks;
+    courseData.status = "Completed";
 
     // Update feedback if provided
     if (feedback) {
       await Feedback.findOneAndUpdate(
-        { userId, courseId },
+        { userId, courseId, course, title },
         {
           $set: { feedback, updatedDate: Date.now() },
           $setOnInsert: { createdDate: Date.now() },
@@ -1058,7 +1091,6 @@ exports.registerCourses = async (req, res) => {
 
     for (const courseId of courseIds) {
       try {
-        
         const courseObjectId = new mongoose.Types.ObjectId(courseId);
 
         // Fetch the course to register
@@ -1083,7 +1115,6 @@ exports.registerCourses = async (req, res) => {
           });
           continue;
         }
-
 
         if (courseToRegister.status !== "open") {
           results.push({
@@ -1110,8 +1141,8 @@ exports.registerCourses = async (req, res) => {
           continue;
         }
 
-         // Set the first semester if not already set
-         if (
+        // Set the first semester if not already set
+        if (
           !programOfStudy.firstSemester.semester ||
           !programOfStudy.firstSemester.year
         ) {
@@ -1576,7 +1607,11 @@ exports.isFirstSemester = async (req, res) => {
       { firstSemester: 1 } // Project only the firstSemester field
     ).lean();
 
-    if (!programOfStudy || !programOfStudy.firstSemester?.semester || !programOfStudy.firstSemester?.year) {
+    if (
+      !programOfStudy ||
+      !programOfStudy.firstSemester?.semester ||
+      !programOfStudy.firstSemester?.year
+    ) {
       logger.info(`First semester not found for user ID: ${userId}`);
       return res.status(404).json({
         status: "failure",
@@ -1586,14 +1621,16 @@ exports.isFirstSemester = async (req, res) => {
 
     // Check if the input semester and year match the first semester
     const isMatch =
-      programOfStudy.firstSemester.semester.toLowerCase() === semester.toLowerCase() &&
-      programOfStudy.firstSemester.year === year;
+      programOfStudy.firstSemester.semester.toLowerCase() ===
+        semester.toLowerCase() && programOfStudy.firstSemester.year === year;
 
-    logger.info(`Checked first semester for user ID: ${userId} - Result: ${isMatch}`);
+    logger.info(
+      `Checked first semester for user ID: ${userId} - Result: ${isMatch}`
+    );
     return res.status(200).json({
       status: "success",
       message: "First semester comparison completed successfully",
-      isFirstSemester: isMatch
+      isFirstSemester: isMatch,
     });
   } catch (error) {
     logger.error("Error validating first semester", { error: error.message });
