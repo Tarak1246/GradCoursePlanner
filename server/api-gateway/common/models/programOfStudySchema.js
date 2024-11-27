@@ -85,7 +85,6 @@ const programOfStudySchema = new mongoose.Schema(
     firstSemester: {
       semester: {
         type: String,
-        enum: ['spring', 'summer', 'fall'],
       },
       year: {
         type: String,

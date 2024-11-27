@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const courseSchema = new mongoose.Schema({
     crn: { type: String, required: true }, // Course Reference Number (can repeat with unique semester/year combination)
     subject: { type: String, required: true, enum: ["CS", "CEG"] }, // Subject codes
-    course: { type: String, required: true, unique: true }, // Unique course number
+    course: { type: String, required: true}, // Unique course number
     section: { type: String, required: true }, // Section number
     campus: { type: String, required: true, enum: ["Dayton", "Lake"] }, // Fixed campus values
     semester: { type: String, required: true, enum: ["spring", "summer", "fall"] }, // Semester values
@@ -34,7 +34,10 @@ const courseSchema = new mongoose.Schema({
     status: { type: String, required: true, enum: ["open", "closed"] }, // Status of the course
 }, { timestamps: true }); // Automatically adds createdAt and updatedAt fields
 
-// Compound index to ensure crn, semester, and year combination is unique
+// Compound index to ensure unique combination of course, semester, and year
+courseSchema.index({ course: 1, semester: 1, year: 1 }, { unique: true });
+
+// Retain existing CRN index for uniqueness within a semester/year
 courseSchema.index({ crn: 1, semester: 1, year: 1 }, { unique: true });
 
 module.exports = mongoose.model('Course', courseSchema);

@@ -379,11 +379,14 @@ exports.addOrModifyCourses = async (req, res) => {
       });
 
       if (dbCourse && course.certificationRequirements.length > 0) {
+        console.log("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeedbCourse",dbCourse);
+        console.log("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeecourse",course);
         await Promise.all(
           course.certificationRequirements.map(async (certName) => {
+            console.log("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeecertName",certName);
             let certificate = await Certificate.findOne({ name: certName });
-
             if (certificate) {
+              console.log("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeecertificate",certificate);
               // Avoid duplicate course entries in the certificate
               const courseExists = certificate.requiredCourses.some(
                 (c) => c.courseId.toString() === dbCourse._id.toString()
@@ -433,7 +436,7 @@ exports.addOrModifyCourses = async (req, res) => {
   }
 };
 
-exports.validateCourseSelection = async (req, res) => {
+exports.validateCourseSelection1 = async (req, res) => {
   const userId = req?.user?.id;
   const { courseId } = req.params;
 
@@ -476,6 +479,18 @@ exports.validateCourseSelection = async (req, res) => {
       });
     }
 
+    // Handle first-time registration
+    if (!programOfStudy) {
+      logger.info(`First-time registration for user ID: ${userId}`);
+      return res.status(200).json({
+        status: "fulfilled",
+        data: {
+          isValid: true,
+          message: "First-time registration. No validation required.",
+        },
+      });
+    }
+
     const plannedAndCompletedCourses =
       programOfStudy?.courses.filter(
         (c) => c.status === "Completed" || c.status === "Planned"
@@ -499,17 +514,7 @@ exports.validateCourseSelection = async (req, res) => {
       });
     }
 
-    // Handle first-time registration
-    if (!programOfStudy) {
-      logger.info(`First-time registration for user ID: ${userId}`);
-      return res.status(200).json({
-        status: "fulfilled",
-        data: {
-          isValid: true,
-          message: "First-time registration. No validation required.",
-        },
-      });
-    }
+
 
     // Calculate total credits and specific limits
     const { totalCredits, ceg6000Credits, coreCourseCount } =
@@ -551,6 +556,206 @@ exports.validateCourseSelection = async (req, res) => {
         data: {
           isValid: true,
           message: "Credits <= 12. No validation required.",
+        },
+      });
+    }
+
+    // Validate CEG/6000-Level Credit Limit
+    if (ceg6000Credits + course.credits > 12) {
+      logger.info(
+        `CEG/6000-Level credit limit exceeded for user ID: ${userId}`
+      );
+      return res.status(400).json({
+        status: "fulfilled",
+        data: {
+          isValid: false,
+          message:
+            "You cannot exceed 12 credits at the 6000 level or in CEG courses.",
+        },
+      });
+    }
+
+    // Validate core course requirements if totalCredits >= 24
+    if (totalCredits >= 24) {
+      const isCoreCourse = ["7200", "7370", "7100", "7140"].includes(
+        course.course
+      );
+      if (coreCourseCount === 0 && !isCoreCourse) {
+        logger.info(
+          `Credits >= 24. Core course required for user ID: ${userId}`
+        );
+        return res.status(400).json({
+          status: "fulfilled",
+          data: {
+            isValid: false,
+            message: "Credits >= 24. You must take a core course.",
+          },
+        });
+      }
+
+      if (coreCourseCount === 1 && totalCredits + course.credits > 27) {
+        logger.info(
+          `Credits >= 27. Additional core course required for user ID: ${userId}`
+        );
+        return res.status(400).json({
+          status: "fulfilled",
+          data: {
+            isValid: false,
+            message: "Credits >= 27. You must take another core course.",
+          },
+        });
+      }
+    }
+
+    logger.info(
+      `Course selection validated successfully for user ID: ${userId}`
+    );
+    return res.status(200).json({
+      status: "fulfilled",
+      data: {
+        isValid: true,
+        message: "Course selection is valid.",
+      },
+    });
+  } catch (error) {
+    logger.error(
+      `Error validating course selection for user ID: ${userId}`,
+      error
+    );
+    return res.status(500).json({
+      status: "rejected",
+      message: "Internal server error",
+    });
+  }
+};
+
+exports.validateCourseSelection = async (req, res) => {
+  const userId = req?.user?.id;
+  const { courseId } = req.params;
+
+  try {
+    if (!userId) {
+      logger.warn("Missing user ID in JWT token");
+      return res.status(401).json({
+        status: "rejected",
+        message: "Invalid token: User ID missing",
+      });
+    }
+
+    if (!courseId) {
+      logger.warn("Missing course ID in request");
+      return res.status(400).json({
+        status: "rejected",
+        message: "courseId is required",
+      });
+    }
+
+    // Convert IDs to ObjectId
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const courseObjectId = new mongoose.Types.ObjectId(courseId);
+
+    logger.info(
+      `Validating course selection for user ID: ${userId}, course ID: ${courseId}`
+    );
+
+    // Fetch user's ProgramOfStudy and selected course concurrently
+    const [programOfStudy, course] = await Promise.all([
+      ProgramOfStudy.findOne({ userId: userObjectId })
+        .populate("courses.courseId", "course subject credits") // Populate course details
+        .lean(),
+      Course.findById(courseObjectId).lean(),
+    ]);
+
+    if (!course) {
+      logger.warn(`Course not found for ID: ${courseId}`);
+      return res.status(404).json({
+        status: "rejected",
+        message: "Course not found",
+      });
+    }
+
+    // Handle first-time registration
+    if (!programOfStudy) {
+      logger.info(`First-time registration for user ID: ${userId}`);
+      return res.status(200).json({
+        status: "fulfilled",
+        data: {
+          isValid: true,
+          message: "First-time registration. No validation required.",
+        },
+      });
+    }
+
+    const plannedAndCompletedCourses =
+      programOfStudy?.courses.filter(
+        (c) => c.status === "Completed" || c.status === "Planned"
+      ) || [];
+
+    // Validate if the course ID is already registered
+    const isAlreadyRegistered = plannedAndCompletedCourses.some(
+      (c) => c.courseId && c.courseId._id.toString() === courseId
+    );
+
+    if (isAlreadyRegistered) {
+      logger.info(
+        `Course already registered for user ID: ${userId}, course ID: ${courseId}`
+      );
+      return res.status(400).json({
+        status: "fulfilled",
+        data: {
+          isValid: false,
+          message: "This course is already planned or completed.",
+        },
+      });
+    }
+
+    // Validate if the same course number is already registered in another semester/year
+    const isSameCourseNumberRegistered = plannedAndCompletedCourses.some(
+      (c) => c.courseId && c.courseId.course === course.course
+    );
+
+    if (isSameCourseNumberRegistered) {
+      logger.info(
+        `Same course number already registered for user ID: ${userId}, course number: ${course.course}`
+      );
+      return res.status(400).json({
+        status: "fulfilled",
+        data: {
+          isValid: false,
+          message: `You have already registered for the course ${course.course} in another semester/year.`,
+        },
+      });
+    }
+
+    // Calculate total credits and specific limits
+    const { totalCredits, ceg6000Credits, coreCourseCount } =
+      plannedAndCompletedCourses.reduce(
+        (acc, c) => {
+          acc.totalCredits += c.courseId.credits;
+          if (
+            c.courseId.subject === "CEG" ||
+            c.courseId.course.startsWith("6")
+          ) {
+            acc.ceg6000Credits += c.courseId.credits;
+          }
+          if (["7200", "7370", "7100", "7140"].includes(c.courseId.course)) {
+            acc.coreCourseCount++;
+          }
+          return acc;
+        },
+        { totalCredits: 0, ceg6000Credits: 0, coreCourseCount: 0 }
+      );
+
+    // Check if total credits exceed graduation limit
+    if (totalCredits + course.credits > 30) {
+      logger.info(
+        `Credits > 30. Expected credits for graduation reached for user ID: ${userId}`
+      );
+      return res.status(400).json({
+        status: "fulfilled",
+        data: {
+          isValid: false,
+          message: "You have already registered 30 credits.",
         },
       });
     }
@@ -853,16 +1058,7 @@ exports.registerCourses = async (req, res) => {
 
     for (const courseId of courseIds) {
       try {
-        // Stop registering if total credits have already reached 30
-        if (updatedTotalCredits >= 30) {
-          results.push({
-            courseId,
-            status: "failure",
-            reason: "Graduation limit credits reached (30 credits)",
-          });
-          continue;
-        }
-
+        
         const courseObjectId = new mongoose.Types.ObjectId(courseId);
 
         // Fetch the course to register
@@ -870,15 +1066,29 @@ exports.registerCourses = async (req, res) => {
         if (!courseToRegister) {
           results.push({
             courseId,
+            courseTitle: null,
             status: "failure",
             reason: "Course not found",
           });
           continue;
         }
+        const courseTitle = courseToRegister.title;
+        // Stop registering if total credits have already reached 30
+        if (updatedTotalCredits >= 30) {
+          results.push({
+            courseId,
+            courseTitle,
+            status: "failure",
+            reason: "Graduation limit credits reached (30 credits)",
+          });
+          continue;
+        }
+
 
         if (courseToRegister.status !== "open") {
           results.push({
             courseId,
+            courseTitle,
             status: "failure",
             reason: "Course is not open for registration",
           });
@@ -893,10 +1103,22 @@ exports.registerCourses = async (req, res) => {
         ) {
           results.push({
             courseId,
+            courseTitle,
             status: "failure",
             reason: "Course already registered",
           });
           continue;
+        }
+
+         // Set the first semester if not already set
+         if (
+          !programOfStudy.firstSemester.semester ||
+          !programOfStudy.firstSemester.year
+        ) {
+          programOfStudy.firstSemester = {
+            semester: courseToRegister.semester,
+            year: courseToRegister.year,
+          };
         }
 
         // Map semesters to numeric values for proper comparison
@@ -927,6 +1149,7 @@ exports.registerCourses = async (req, res) => {
           ) {
             results.push({
               courseId,
+              courseTitle,
               status: "failure",
               reason:
                 "Course semester/year must be equal or greater than the first semester and year",
@@ -951,6 +1174,7 @@ exports.registerCourses = async (req, res) => {
         if (isFirstSemester && semesterCourses.length >= 2) {
           results.push({
             courseId,
+            courseTitle,
             status: "failure",
             reason: "First semester limit of 2 courses reached",
           });
@@ -960,6 +1184,7 @@ exports.registerCourses = async (req, res) => {
         if (!isFirstSemester && semesterCourses.length >= 3) {
           results.push({
             courseId,
+            courseTitle,
             status: "failure",
             reason: "Semester limit of 3 courses reached",
           });
@@ -975,6 +1200,7 @@ exports.registerCourses = async (req, res) => {
         if (sectionRemaining <= 0) {
           results.push({
             courseId,
+            courseTitle,
             status: "failure",
             reason: "No remaining seats for the course",
           });
@@ -1020,6 +1246,7 @@ exports.registerCourses = async (req, res) => {
           if (conflictingCourse) {
             results.push({
               courseId,
+              courseTitle,
               status: "failure",
               reason: "This course conflicts with another registered course",
             });
@@ -1043,6 +1270,7 @@ exports.registerCourses = async (req, res) => {
         if (!updatedCourse) {
           results.push({
             courseId,
+            courseTitle,
             status: "failure",
             reason: "Failed to update course seat counts",
           });
@@ -1090,6 +1318,7 @@ exports.registerCourses = async (req, res) => {
 
         results.push({
           courseId,
+          courseTitle,
           status: "success",
           message: "Course registered successfully",
         });

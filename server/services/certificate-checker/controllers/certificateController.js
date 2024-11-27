@@ -11,12 +11,10 @@ exports.checkCertificates = async (req, res) => {
   try {
     if (!userId) {
       logger.warn("User ID missing in JWT token");
-      return res
-        .status(401)
-        .json({
-          status: "rejected",
-          message: "Invalid token: User ID missing",
-        });
+      return res.status(401).json({
+        status: "rejected",
+        message: "Invalid token: User ID missing",
+      });
     }
 
     if (!courseId) {
@@ -25,11 +23,12 @@ exports.checkCertificates = async (req, res) => {
         .status(400)
         .json({ status: "rejected", message: "courseId is required" });
     }
-    // Convert courseId to ObjectId
+
+    // Convert IDs to ObjectId
     userId = new mongoose.Types.ObjectId(userId);
-    // Convert courseId to ObjectId
     courseId = new mongoose.Types.ObjectId(courseId);
-    // Fetch selected course
+
+    // Fetch the course details
     const course = await Course.findById(courseId);
     if (!course) {
       logger.warn(`Course not found with ID: ${courseId}`);
@@ -48,7 +47,7 @@ exports.checkCertificates = async (req, res) => {
       ? programOfStudy.courses.filter((c) => c.status === "Completed")
       : [];
 
-    // Fetch all certificates
+    // Fetch all certificates and populate required courses
     const certificates = await Certificate.find().populate(
       "requiredCourses.courseId",
       "title"
@@ -56,25 +55,26 @@ exports.checkCertificates = async (req, res) => {
 
     const results = [];
     certificates.forEach((certificate) => {
-      const requiredCourses = certificate.requiredCourses.map((c) =>
-        c.courseId._id.toString()
+      const requiredCourses = certificate.requiredCourses.map(
+        (c) => c.courseId?._id?.toString() // Ensure we're only dealing with the course IDs
       );
+
       const completedCourseIds = completedCourses.map((c) =>
-        c.courseId._id.toString()
+        c.courseId?._id?.toString()
       );
 
-      // Calculate remaining courses
+      // Calculate remaining courses for the certificate
       const remainingCourses = requiredCourses.filter(
-        (reqCourse) => !completedCourseIds.includes(reqCourse)
+        (reqCourseId) => !completedCourseIds.includes(reqCourseId)
       );
 
-      // If the selected course contributes to this certificate
+      // Check if the selected course contributes to the certificate
       const isCurrentCourseEligible = requiredCourses.includes(
-        course._id.toString()
+        courseId.toString()
       );
 
       if (isCurrentCourseEligible) {
-        if (remainingCourses.length === 1 && remainingCourses[0] === courseId) {
+        if (remainingCourses.length === 1 && remainingCourses[0] === courseId.toString()) {
           // Eligible after this course
           results.push({
             certificateName: certificate.name,
@@ -82,7 +82,7 @@ exports.checkCertificates = async (req, res) => {
             eligible: true,
           });
         } else {
-          // Still requires additional courses
+          // Additional courses required
           results.push({
             certificateName: certificate.name,
             message: `You are ${remainingCourses.length} course(s) away from earning the "${certificate.name}" certificate.`,
@@ -92,7 +92,7 @@ exports.checkCertificates = async (req, res) => {
       }
     });
 
-    // If no certificates are found
+    // If no certificates apply
     if (results.length === 0) {
       results.push({
         message:
@@ -113,13 +113,12 @@ exports.checkCertificates = async (req, res) => {
       }:`,
       error
     );
-    return res
-      .status(500)
-      .json({
-        status: "rejected",
-        message: `Error checking certificates for user ${
-          userId || "unknown"
-        } and course ${req.params.courseId || "unknown"}: ${error}`,
-      });
+    return res.status(500).json({
+      status: "rejected",
+      message: `Error checking certificates for user ${
+        userId || "unknown"
+      } and course ${req.params.courseId || "unknown"}: ${error.message}`,
+    });
   }
 };
+
