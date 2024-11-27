@@ -1546,3 +1546,60 @@ exports.deleteCourse = async (req, res) => {
     });
   }
 };
+
+exports.isFirstSemester = async (req, res) => {
+  try {
+    const userId = req?.user?.id;
+    const { semester, year } = req.body;
+
+    if (!userId) {
+      logger.warn("User ID missing in JWT token");
+      return res.status(401).json({
+        status: "failure",
+        message: "Invalid token: User ID missing",
+      });
+    }
+
+    if (!semester || !year) {
+      logger.warn("Semester and/or year is missing in the request body");
+      return res.status(400).json({
+        status: "failure",
+        message: "Both semester and year are required",
+      });
+    }
+
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    // Fetch the program of study for the user
+    const programOfStudy = await ProgramOfStudy.findOne(
+      { userId: userObjectId },
+      { firstSemester: 1 } // Project only the firstSemester field
+    ).lean();
+
+    if (!programOfStudy || !programOfStudy.firstSemester?.semester || !programOfStudy.firstSemester?.year) {
+      logger.info(`First semester not found for user ID: ${userId}`);
+      return res.status(404).json({
+        status: "failure",
+        message: "First semester not found for the user",
+      });
+    }
+
+    // Check if the input semester and year match the first semester
+    const isMatch =
+      programOfStudy.firstSemester.semester.toLowerCase() === semester.toLowerCase() &&
+      programOfStudy.firstSemester.year === year;
+
+    logger.info(`Checked first semester for user ID: ${userId} - Result: ${isMatch}`);
+    return res.status(200).json({
+      status: "success",
+      message: "First semester comparison completed successfully",
+      isFirstSemester: isMatch
+    });
+  } catch (error) {
+    logger.error("Error validating first semester", { error: error.message });
+    return res.status(500).json({
+      status: "failure",
+      message: "Internal server error",
+    });
+  }
+};

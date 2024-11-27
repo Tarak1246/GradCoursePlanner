@@ -9,7 +9,8 @@ const {
   registerCourses,
   getProgramOfStudy,
   updateCourseCompletion,
-  deleteCourse
+  deleteCourse,
+  isFirstSemester
 } = require("../controllers/courseController");
 const {
   verifyAdmin,
@@ -41,9 +42,13 @@ router.get("/course-check/:courseId", validateCourseSelection);
 
 router.post("/register-courses", registerCourses);
 
+router.post("/is-first-semester", isFirstSemester);
+
 // Get course details by course ID
 router.get("/:courseId", getCourseDetails);
 
 router.delete("/:courseId", deleteCourse);
+
+
 
 module.exports = router;
