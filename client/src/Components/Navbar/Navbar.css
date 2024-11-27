@@ -55,12 +55,12 @@ ul li {
 .dropdown-menu {
   position: absolute;
   top: 120%;
-  left: 14px;
+  left: 0%;
   background: white;
   border: 1px solid #ddd;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   border-radius: 5px;
-  width: 200px;
+  width: 100%;
   z-index: 1000;
   padding: 10px;
 }

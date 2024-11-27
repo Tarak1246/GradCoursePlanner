@@ -3,9 +3,9 @@ import { Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "../Alert/alert";
 import axios from "axios";
 import { handleCourseClick } from "../../api/baseApiUrl";
-import Modal from "../../Modal/Modal";
+import ModalContent from "../../Modal/ModalContent";
 
-const Subject = ({ courses, onBack }) => {
+const Subject = ({ courses, onBack, filters }) => {
   const [subjects] = useState(
     courses.map((course) => ({ id: course._id, title: course.title }))
   );
@@ -69,41 +69,24 @@ const Subject = ({ courses, onBack }) => {
 
   const checkSubjectEligibility = async (subjectId) => {
     try {
-      // Example data returned from API
-      const data = {
-        prerequisites: {
-          eligible: false,
-          message:
-            "You need to complete the following prerequisites before registering for this course.",
-          unmetPrerequisites: ["5001", "5002"],
-          invalidPlannedPrerequisites: [],
-        },
-        courseCheck: {
-          isValid: true,
-          message: "First-time registration. No validation required.",
-        },
-        certificateEligibility: [
-          {
-            certificateName: "AI Certification",
-            message:
-              'You are 3 course(s) away from earning the "AI Certification" certificate.',
-            eligible: true,
+      const response = await axios.get(
+        `http://localhost:4000/api/subject-details/${subjectId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
           },
-          {
-            certificateName: "Cybersecurity",
-            message:
-              'You are 2 course(s) away from earning the "Cybersecurity" certificate.',
-            eligible: true,
-          },
-        ],
-        errors: [],
-      };
+        }
+      );
 
-      if (data.courseCheck.isValid === false) {
+      const data = response.data;
+
+      if (data.courseCheck && data.courseCheck.isValid === false) {
         toggleDialog("error", true, { message: data.courseCheck.message });
         return false;
       } else if (
+        data.courseCheck &&
         data.courseCheck.isValid &&
+        data.prerequisites &&
         data.prerequisites.eligible === false
       ) {
         toggleDialog("prereqConfirm", true, {
@@ -115,8 +98,11 @@ const Subject = ({ courses, onBack }) => {
         });
         return false;
       } else if (
+        data.courseCheck &&
         data.courseCheck.isValid &&
+        data.prerequisite &&
         data.prerequisites.eligible &&
+        data.certificateEligibility &&
         data.certificateEligibility.length > 0
       ) {
         toggleDialog("certificate", true, {
@@ -137,7 +123,7 @@ const Subject = ({ courses, onBack }) => {
   const addSubject = (subject) =>
     setSelectedSubjects([...selectedSubjects, subject]);
 
-  const handlePrereqConfirm = (confirmed) => {
+  const handlePreReqConfirm = (confirmed) => {
     // Close the dialog
     toggleDialog("prereqConfirm", false);
 
@@ -271,25 +257,31 @@ const Subject = ({ courses, onBack }) => {
     );
   };
 
+  const output = Object.values(filters)
+    .flat() // Flattens the array values
+    .filter((item) => item) // Removes empty arrays or falsy values
+    .join(" -> "); // Joins the elements with '->'
+
   return (
     <>
       <div className="min-h-screen bg-gray-50">
-        <button
-          onClick={onBack}
-          className="bg-green-800 text-white px-4 py-2 rounded-lg hover:bg-green-900 mb-4 mt-5 ms-5">
-          Back to Filters
-        </button>
-
-        <header className="bg-white shadow">
+        <header>
           <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
             <h1 className="text-3xl font-bold text-gray-900">
               Course Registration System
             </h1>
           </div>
         </header>
+
         <main>
           <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-            <div className="min-h-screen bg-gray-50 p-6">
+            <button
+              onClick={onBack}
+              className="bg-green-800 text-white px-4 py-2 rounded-lg hover:bg-green-900 mb-4 mt-5 ms-5">
+              Back to Filters
+            </button>
+            <h5 className="ps-6 my-2 font-semibold">{output}</h5>
+            <div className=" bg-gray-50 p-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-lg shadow">
                   <h2 className="text-xl font-semibold mb-4">
@@ -317,7 +309,7 @@ const Subject = ({ courses, onBack }) => {
               <div className="flex justify-center mt-6">
                 <button
                   onClick={handleRegister}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  className="px-6 py-2 bg-green-800 text-white rounded-lg hover:bg-green-900">
                   Register Subjects
                 </button>
               </div>
@@ -344,12 +336,12 @@ const Subject = ({ courses, onBack }) => {
           <p>{dialogData.message}</p>
           <div className="mt-4 flex justify-end space-x-2">
             <button
-              onClick={() => handlePrereqConfirm(false)}
+              onClick={() => handlePreReqConfirm(false)}
               className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
               No
             </button>
             <button
-              onClick={() => handlePrereqConfirm(true)}
+              onClick={() => handlePreReqConfirm(true)}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
               Yes
             </button>
@@ -388,195 +380,11 @@ const Subject = ({ courses, onBack }) => {
           </div>
         </Dialog>
 
-        {showDetailsDialog && (
-          <Modal
-            onClose={closeModal}
-            sections={{
-              " Instructor / Meeting Times": (
-                <div>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Instructor:</strong>{" "}
-                    {subjectDetails?.values[0]?.instructor}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Days:</strong>{" "}
-                    {subjectDetails?.values[0]?.days
-                      ?.toUpperCase()
-                      .split("")
-                      .join(" ")}
-                  </p>
-
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Duration:</strong>{" "}
-                    {subjectDetails?.values[0]?.duration}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Time:</strong>{" "}
-                    {subjectDetails?.values[0]?.time}
-                  </p>
-                </div>
-              ),
-              "Class Details": (
-                <div>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Associated Term:</strong>{" "}
-                    {subjectDetails?.values[0]?.semester}{" "}
-                    {subjectDetails?.values[0]?.year}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">CRN:</strong>{" "}
-                    {subjectDetails?.values[0]?.crn}{" "}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Campus:</strong>{" "}
-                    {subjectDetails?.values[0]?.campus}{" "}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Section:</strong>{" "}
-                    {subjectDetails?.values[0]?.section}{" "}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Subject:</strong>{" "}
-                    {subjectDetails?.values[0]?.subject}{" "}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Course Number:</strong>{" "}
-                    {subjectDetails?.values[0]?.course}{" "}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Title:</strong>{" "}
-                    {subjectDetails?.values[0]?.title}{" "}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Credit Hours:</strong>{" "}
-                    {subjectDetails?.values[0]?.credits}{" "}
-                  </p>
-                </div>
-              ),
-              Attributes: (
-                <div>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Attributes:</strong>{" "}
-                    {subjectDetails?.values[0]?.attribute}
-                  </p>
-                </div>
-              ),
-              Restrictions: (
-                <div>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Restrictions:</strong>{" "}
-                    {subjectDetails?.values[0]?.restrictions || "None"}
-                  </p>
-                </div>
-              ),
-              Prerequisites: (
-                <div>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Prerequisites:</strong>{" "}
-                    {subjectDetails?.values[0]?.prerequisites.length > 0
-                      ? subjectDetails?.values[0]?.prerequisites.join(", ")
-                      : "None"}
-                  </p>
-                </div>
-              ),
-              "Enrollment / Waitlist": (
-                <div>
-                  <p className="text-gray-700 text-[14px]">
-                    <strong className="text-[14px]">Status:</strong>{" "}
-                    {subjectDetails?.values[0]?.status}
-                  </p>
-                  <br></br>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">
-                      Enrollment Capacity:
-                    </strong>{" "}
-                    {subjectDetails?.values[0]?.sectionCapacity}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Enrollment Actual:</strong>{" "}
-                    {subjectDetails?.values[0]?.sectionActual}
-                  </p>
-                  <p className="text-gray-700 text-[14px]">
-                    <strong className="text-[14px]">
-                      Enrollment Remaining:
-                    </strong>{" "}
-                    {subjectDetails?.values[0]?.sectionRemaining}
-                  </p>
-                  <br></br>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Waitlist Capacity:</strong>{" "}
-                    {subjectDetails?.values[0]?.waitlistCapacity}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Waitlist Actual:</strong>{" "}
-                    {subjectDetails?.values[0]?.waitlistActual}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Waitlist Remaining:</strong>{" "}
-                    {subjectDetails?.values[0]?.waitlistRemaining}
-                  </p>
-                </div>
-              ),
-              "Cross List": (
-                <div>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">CrossList Capacity:</strong>{" "}
-                    {subjectDetails?.values[0]?.crosslistCapacity}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">CrossList Actual:</strong>{" "}
-                    {subjectDetails?.values[0]?.crosslistActual}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">
-                      CrossList Remaining:
-                    </strong>{" "}
-                    {subjectDetails?.values[0]?.crosslistRemaining}
-                  </p>
-                </div>
-              ),
-              Catalog: (
-                <div>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Title:</strong>{" "}
-                    {subjectDetails?.values[0]?.title}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Campus:</strong>{" "}
-                    {subjectDetails?.values[0]?.campus}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Location:</strong>{" "}
-                    {subjectDetails?.values[0]?.location}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Credit Hours:</strong>{" "}
-                    {subjectDetails?.values[0]?.credits}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Levels:</strong>{" "}
-                    {subjectDetails?.values[0]?.level}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Attributes:</strong>{" "}
-                    {subjectDetails?.values[0]?.attribute}
-                  </p>
-                  <p className="text-gray-700 text-[14px] pb-2">
-                    <strong className="text-[14px]">Category:</strong>{" "}
-                    {subjectDetails?.values[0]?.category.join(", ")}
-                  </p>
-                  <h5 className="text-gray-700 pb-2 text-[14px]">
-                    <strong>Certification Requirements:</strong>{" "}
-                    {subjectDetails?.values[0]?.certificationRequirements.join(
-                      ", "
-                    )}
-                  </h5>
-                </div>
-              ),
-            }}
-            title={`Class Details for ${subjectDetails?.values[0]?.title} ${subjectDetails?.values[0]?.subject} ${subjectDetails?.values[0]?.course} ${subjectDetails?.values[0]?.section}`}
-          />
-        )}
+        <ModalContent
+          isShowModal={showDetailsDialog}
+          closeModal={closeModal}
+          subjectDetails={subjectDetails}
+        />
       </div>
     </>
   );
