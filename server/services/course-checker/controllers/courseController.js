@@ -3,6 +3,8 @@ const Course = require("../../../api-gateway/common/models/Course");
 const logger = require("../../../api-gateway/common/utils/logger");
 const ProgramOfStudy = require("../../../api-gateway/common/models/programOfStudySchema");
 const Certificate = require("../../../api-gateway/common/models/certificateSchema");
+const Feedback = require("../../../api-gateway/common/models/feedbackSchema");
+
 const xlsx = require("xlsx");
 const {
   courseValidationSchema,
@@ -152,6 +154,7 @@ exports.getCourseDetails = async (req, res) => {
   try {
     const { courseId } = req.params;
 
+    // Validate courseId
     if (!courseId) {
       logger.warn("Course ID is missing in the request parameters");
       return res.status(400).json({
@@ -168,8 +171,15 @@ exports.getCourseDetails = async (req, res) => {
       });
     }
 
-    const course = await Course.findById(courseId).lean();
+    // Fetch the course details and related feedback concurrently
+    const [course, feedback] = await Promise.all([
+      Course.findById(courseId).lean(),
+      Feedback.find({ courseId })
+        .populate("userId", "name") // Populate the name field from the User collection
+        .lean(),
+    ]);
 
+    // Check if course exists
     if (!course) {
       logger.info(`Course with ID ${courseId} not found`);
       return res.status(404).json({
@@ -178,11 +188,21 @@ exports.getCourseDetails = async (req, res) => {
       });
     }
 
-    logger.info(`Course details fetched successfully for ID: ${courseId}`);
+    // Enhance feedback array with user name and formatted date
+    const feedbackWithDetails = feedback.map((f) => ({
+      name: f.userId?.name || "Unknown", // Name of the user from User schema
+      feedback: f.feedback,
+      semester: course.semester,
+      year: course.year,
+      date: new Date(f.createdDate).toISOString().split("T")[0], // Extract only date from createdAt
+    }));
+
+    logger.info(`Course details and feedback fetched successfully for ID: ${courseId}`);
     return res.status(200).json({
       status: "success",
-      message: "Course details fetched successfully",
+      message: "Course details and feedback fetched successfully",
       course,
+      feedback: feedbackWithDetails,
     });
   } catch (error) {
     logger.error(
@@ -656,13 +676,13 @@ exports.getEnumValues = async (req, res) => {
 exports.updateCourseCompletion = async (req, res) => {
   try {
     const userId = req?.user?.id;
-    const { courses } = req.body; // Expecting an array of course updates: [{ courseId, grade, marks, totalMarks }]
+    const { courseId, grade, marks, totalMarks, feedback } = req.body;
 
-    if (!userId || !Array.isArray(courses) || courses.length === 0) {
-      logger.warn("Invalid input: userId or courses array is missing");
+    if (!userId || !courseId) {
+      logger.warn("Invalid input: userId or courseId is missing");
       return res.status(400).json({
         status: "failure",
-        message: "userId and courses array with course details are required",
+        message: "userId and courseId are required",
       });
     }
 
@@ -675,7 +695,27 @@ exports.updateCourseCompletion = async (req, res) => {
       F: 0.0,
     };
 
-    // Fetch program of study for the user
+    // Validate grade
+    if (grade && !validGrades.includes(grade)) {
+      logger.warn(`Invalid grade: ${grade} for courseId: ${courseId}`);
+      return res.status(400).json({
+        status: "failure",
+        message: `Invalid grade: ${grade}`,
+      });
+    }
+
+    // Validate marks
+    if (marks !== undefined && totalMarks !== undefined && marks > totalMarks) {
+      logger.warn(
+        `Marks (${marks}) cannot exceed totalMarks (${totalMarks}) for courseId: ${courseId}`
+      );
+      return res.status(400).json({
+        status: "failure",
+        message: `Marks cannot exceed totalMarks`,
+      });
+    }
+
+    // Fetch the program of study for the user
     const programOfStudy = await ProgramOfStudy.findOne({ userId });
     if (!programOfStudy) {
       logger.warn(`Program of study not found for userId: ${userId}`);
@@ -684,71 +724,50 @@ exports.updateCourseCompletion = async (req, res) => {
         .json({ status: "failure", message: "Program of study not found" });
     }
 
-    // Track changes for logging and efficiency
-    let isUpdated = false;
-
-    // Iterate over courses to update
-    for (const { courseId, grade, marks, totalMarks, courseName } of courses) {
-      if (!validGrades.includes(grade)) {
-        logger.warn(
-          `Invalid grade provided: ${grade} for courseId: ${courseId}`
-        );
-        return res.status(400).json({
-          status: "failure",
-          message: `Invalid grade provided: ${grade} for course: ${courseName}`,
-        });
-      }
-      if (
-        marks !== undefined &&
-        totalMarks !== undefined &&
-        marks > totalMarks
-      ) {
-        logger.warn(`Marks cannot exceed totalMarks for courseId: ${courseId}`);
-        return res.status(400).json({
-          status: "failure",
-          message: `Marks cannot exceed totalMarks for course: ${courseName}`,
-        });
-      }
-
-      // Find the course in the program of study
-      const course = programOfStudy.courses.find(
-        (c) => c.courseId.toString() === courseId
+    // Find the course in the program of study
+    const course = programOfStudy.courses.find(
+      (c) => c.courseId.toString() === courseId
+    );
+    if (!course) {
+      logger.warn(
+        `CourseId: ${courseId} not found in program of study for userId: ${userId}`
       );
-      if (!course) {
-        logger.warn(
-          `CourseId: ${courseId} not found in program of study for userId: ${userId}`
-        );
-        return res.status(400).json({
-          status: "failure",
-          message: `Course: ${courseName} not found in program of study`,
-        });
-      }
-
-      // Update course details
-      course.status = "Completed";
-      course.grade = grade;
-      course.marks = marks !== undefined ? marks : course.marks;
-      course.totalMarks =
-        totalMarks !== undefined ? totalMarks : course.totalMarks;
-
-      isUpdated = true; // Mark that we updated at least one course
+      return res.status(400).json({
+        status: "failure",
+        message: "Course not found in program of study",
+      });
     }
 
-    if (!isUpdated) {
-      logger.warn(`No valid courses to update for userId: ${userId}`);
-      return res
-        .status(400)
-        .json({ status: "failure", message: "No valid courses to update" });
+    // Update course details
+    if (grade) course.grade = grade;
+    if (marks !== undefined) course.marks = marks;
+    if (totalMarks !== undefined) course.totalMarks = totalMarks;
+    course.status = "Completed";
+
+    // Update feedback if provided
+    if (feedback) {
+      await Feedback.findOneAndUpdate(
+        { userId, courseId },
+        {
+          $set: { feedback, updatedDate: Date.now() },
+          $setOnInsert: { createdDate: Date.now() },
+        },
+        { new: true, upsert: true }
+      );
+      logger.info(
+        `Feedback updated for userId: ${userId}, courseId: ${courseId}`
+      );
     }
 
+    // Recalculate GPA for completed courses
     const completedCourses = programOfStudy.courses.filter(
       (c) => c.status === "Completed" && gradeToPoints[c.grade] !== undefined
     );
 
-    // Calculate GPA based on grades only (simple average of grade points)
-    const totalGradePoints = completedCourses.reduce((sum, c) => {
-      return sum + gradeToPoints[c.grade];
-    }, 0);
+    const totalGradePoints = completedCourses.reduce(
+      (sum, c) => sum + gradeToPoints[c.grade],
+      0
+    );
 
     const totalCourses = completedCourses.length;
 
@@ -764,17 +783,19 @@ exports.updateCourseCompletion = async (req, res) => {
       ? "Completed"
       : "In Progress";
 
-    // Save the program of study
+    // Save the updated program of study
     await programOfStudy.save();
 
-    logger.info(`Successfully updated courses and GPA for userId: ${userId}`);
+    logger.info(`Successfully updated course completion for userId: ${userId}`);
     return res.status(200).json({
       status: "success",
-      message: "Courses updated and GPA calculated successfully",
+      message: "Course updated and GPA recalculated successfully",
       gpa: programOfStudy.gpa,
     });
   } catch (error) {
-    logger.error("Error updating course completion:", error);
+    logger.error(`Error updating course completion for userId: ${userId}`, {
+      error: error.message,
+    });
     return res.status(500).json({
       status: "failure",
       message: "Internal server error",
@@ -948,7 +969,7 @@ exports.registerCourses = async (req, res) => {
         // Check for available seats
         const sectionRemaining =
           parseInt(courseToRegister.sectionRemaining, 10) || 0;
-        
+
         const sectionActual = parseInt(courseToRegister.sectionActual, 10) || 0;
 
         if (sectionRemaining <= 0) {
@@ -1261,7 +1282,8 @@ exports.deleteCourse = async (req, res) => {
     }
 
     // Update the overall completion status if totalCredits is less than 30
-    programOfStudy.completionStatus = programOfStudy.totalCredits >= 30 ? "Completed" : "In Progress";
+    programOfStudy.completionStatus =
+      programOfStudy.totalCredits >= 30 ? "Completed" : "In Progress";
 
     // Save the updated program of study
     await programOfStudy.save();
