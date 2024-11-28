@@ -266,7 +266,7 @@ export const checkSubjectEligibility = async (
       data.courseCheck.isValid &&
       data.prerequisite &&
       data.prerequisites.eligible &&
-      data.certificateEligibility &&
+      data.certificateEligibility.eligible &&
       data.certificateEligibility.length > 0
     ) {
       toggleDialog("certificate", true, {
