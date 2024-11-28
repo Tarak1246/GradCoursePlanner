@@ -65,6 +65,7 @@ const columns = [
 
 function Program() {
   const [rawData, setRawData] = useState([]);
+const [data, setData] = useState([]);
   const [programStatus, setProgramStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [cegCredits, setCegCredits] = useState(0);
@@ -74,7 +75,7 @@ function Program() {
   const [lowerLevelCredits, setLowerLevelCredits] = useState(0);
   const [totalCredits, setTotalCredits] = useState(0);
   // Fetch program data
-  const [rowdata, setData] = useState();
+
    
   const [editRow, setEditRow] = useState(null);
   const [updatedField, setUpdatedField] = useState("");
@@ -110,16 +111,18 @@ function Program() {
   }, []);
 
   // Map data for the table
-  const data = rawData.map((item) => ({
-    crn: item.crn,
-    level: `${item.subject} ${item.course}`,
-    title: item.title,
-    semester: `${item.semesterTaken} ${item.yearTaken}`,
-    credits: item.credits,
-    status: item.status,
-    grade: item.grade,
-   
-  }));
+  useEffect(() => {
+    const mappedData = rawData.map((item) => ({
+      crn: item.crn,
+      level: `${item.subject} ${item.course}`,
+      title: item.title,
+      semester: `${item.semesterTaken} ${item.yearTaken}`,
+      credits: item.credits,
+      status: item.status,
+      grade: item.grade,
+    }));
+    setData(mappedData);
+  }, [rawData]); // Dependency on rawData
 
   if (loading) {
     return <div>Loading...</div>;
@@ -135,8 +138,15 @@ function Program() {
     const updatedData = data.map((row) =>
       row.crn === editRow.crn ? { ...row, grade: updatedField } : row
     );
-    setData(updatedData);
-    setEditRow(null);  // Close the modal after saving
+    setData(updatedData); // Update the `data` state
+
+    // Update `rawData` to maintain consistency
+    const updatedRawData = rawData.map((item) =>
+      item.crn === editRow.crn ? { ...item, grade: updatedField } : item
+    );
+    setRawData(updatedRawData);
+  
+    setEditRow(null); // Close the modal after saving
   };
 
   const handleClose = () => {
