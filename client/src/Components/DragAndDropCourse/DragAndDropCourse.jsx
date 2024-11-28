@@ -111,7 +111,7 @@ const MultiSelect = ({
           {value.map((selected, index) => (
             <span
               key={index}
-              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              className="inline-flex items-center px-4 py-2  rounded-full text-xs font-medium bg-green-100 text-green-800">
               {selected}
               <button
                 type="button"
