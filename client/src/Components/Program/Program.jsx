@@ -74,7 +74,7 @@ function Program() {
   const [lowerLevelCredits, setLowerLevelCredits] = useState(0);
   const [totalCredits, setTotalCredits] = useState(0);
   // Fetch program data
-  const [rowdata, setData] = useState([{ crn: "10001", level: "Graduate", title: "OS", semester: "Summer 2024", credits: 3, status: "Completed", grade: "A" },]);
+  const [rowdata, setData] = useState();
    
   const [editRow, setEditRow] = useState(null);
   const [updatedField, setUpdatedField] = useState("");
@@ -112,8 +112,8 @@ function Program() {
   // Map data for the table
   const data = rawData.map((item) => ({
     crn: item.crn,
-    level: item.subject,
-    title: item.courseId.title,
+    level: `${item.subject} ${item.course}`,
+    title: item.title,
     semester: `${item.semesterTaken} ${item.yearTaken}`,
     credits: item.credits,
     status: item.status,
@@ -128,12 +128,12 @@ function Program() {
 
   const handleEdit = (row) => {
     setEditRow(row);  // Store the row to be edited
-    setUpdatedField(row.credits);  // Initialize the input with the field value
+    setUpdatedField(row.grade);  // Initialize the input with the field value
   };
 
   const handleSave = () => {
     const updatedData = data.map((row) =>
-      row.crn === editRow.crn ? { ...row, credits: updatedField } : row
+      row.crn === editRow.crn ? { ...row, grade: updatedField } : row
     );
     setData(updatedData);
     setEditRow(null);  // Close the modal after saving
@@ -189,20 +189,44 @@ function Program() {
       {editRow && (
         <div className="modal" style={{ display: "block" }}>
           <div className="modal-content">
-            <h2>Edit Row</h2>
-            <p><strong>CRN:</strong> {editRow.crn}</p>
-            <p><strong>Level:</strong> {editRow.level}</p>
+            <div className="modal-headerdiv">
+            <p className="model-headtxt">Upadate your Grade</p>
+            </div>
+            <div className="modal-bodydiv">
+            <div className="modal-text1">
             <p><strong>Title:</strong> {editRow.title}</p>
             <p><strong>Semester:</strong> {editRow.semester}</p>
-            <p><strong>Credits:</strong> 
-              <input
-                type="number"
-                value={updatedField}
+            </div>
+            <div className="modal-text2">
+            <p><strong>CRN:</strong> {editRow.crn}</p>
+            <p><strong>Level:</strong> {editRow.level}</p>
+            <p><strong>Credits:</strong> {editRow.credits}</p>
+            </div>
+            </div>
+            <div className="modal-editdiv">
+            <p><strong>Grade:</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <select 
+                value={updatedField} 
                 onChange={(e) => setUpdatedField(e.target.value)}
-              />
+              >
+                <option value=""></option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+                <option value="F">F</option>
+              </select>
             </p>
-            <button onClick={handleSave}>Save</button>
-            <button onClick={handleClose}>Close</button>
+            </div>
+            <div>
+              <p><strong>Feedback:</strong></p>
+              <input type="text" className="feedbacktext"/>
+              </div>
+            <div className="modal-buttondiv">
+            <button className="model-button" onClick={handleSave}>Save</button>
+            <button className="model-button" onClick={handleClose}>Close</button>
+            
+            </div>
           </div>
         </div>
       )}

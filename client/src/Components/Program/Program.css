@@ -87,44 +87,80 @@ table {
   }
   
   .modal-content {
+    margin: auto;
+    margin-top: 7rem;
+    display: grid;
     background-color: white;
-    padding: 20px;
+    padding: 15px 50px;
     border-radius: 5px;
-    width: 400px;
+    width: 566px;
+    height: 64vh;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   }
-  
+  .modal-headerdiv{
+    display: flex;
+    flex-direction: row;
+  }
+  .model-headtxt{
+    font-size: xx-large;
+    font-weight: 600;
+  }
+  .modal-bodydiv{
+    display: flex;
+    flex-direction: row;
+  }
+  .modal-text1{
+    display: flex;
+    flex-direction: column;
+    width: 50%;
+  }
+  .modal-text2{
+    display: flex;
+    flex-direction: column;
+    width: 50%;
+  }
+  .modal-editdiv{
+    display: flex;
+    flex-direction: row;
+  }
+  .modal-buttondiv{
+    display: flex;
+    flex-direction: row-reverse;
+  }
   /* Style the input fields inside the modal */
-  input[type="number"] {
+  select{
     padding: 8px;
-    width: 100%;
+    width:auto;
+    margin: 10px 0;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+  }
+
+  .feedbacktext{
+    padding: 8px;
+    width:100%;
     margin: 10px 0;
     border-radius: 4px;
     border: 1px solid #ddd;
   }
   
   /* Button styling for the modal */
-  button {
-    margin: 5px;
-    padding: 10px;
+  .model-button {
+    background: linear-gradient(45deg, #71a759, #21480e);
+    width: 116px;
+    height: 49px;
+    border: none;
+    border-radius: 8px;
+    color: white;
+    padding: 10px 30px;
+    margin: 0px 12px;
+    font-size: 16px;
     cursor: pointer;
-    border-radius: 4px;
-  }
-  
-  button.save {
-    background-color: #28a745;
-    color: white;
-  }
-  
-  button.save:hover {
-    background-color: #218838;
-  }
-  
-  button.close {
-    background-color: #dc3545;
-    color: white;
-  }
-  
-  button.close:hover {
-    background-color: #c82333;
-  }
+    transition: all 0.3s ease;
+}
+
+.model-button:hover {
+    transform: scale(1.1);
+    background: linear-gradient(45deg, #71a759, #21480e);
+}
+ 
