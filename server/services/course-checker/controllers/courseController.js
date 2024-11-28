@@ -403,25 +403,24 @@ exports.addOrModifyCourses = async (req, res) => {
         semester: course.semester,
         year: course.year,
       });
-
+    
       if (dbCourse && course.certificationRequirements.length > 0) {
-        console.log("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeedbCourse", dbCourse);
-        console.log("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeecourse", course);
         await Promise.all(
           course.certificationRequirements.map(async (certName) => {
-            console.log("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeecertName", certName);
             let certificate = await Certificate.findOne({ name: certName });
+    
             if (certificate) {
-              console.log(
-                "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeecertificate",
-                certificate
-              );
-              // Avoid duplicate course entries in the certificate
-              const courseExists = certificate.requiredCourses.some(
-                (c) => c.courseId.toString() === dbCourse._id.toString()
-              );
+              // Check if the course already exists in the certificate based on course number
+              const courseExists = certificate.requiredCourses.some((c) => {
+                return c.course === dbCourse.course; // Compare by course number
+              });
+    
               if (!courseExists) {
-                certificate.requiredCourses.push({ courseId: dbCourse._id });
+                // Add both courseId and course (course number) to the certificate
+                certificate.requiredCourses.push({
+                  courseId: dbCourse._id,
+                  course: dbCourse.course, // Add course number
+                });
                 await certificate.save();
                 logger.info(
                   `Updated certificate: ${certName} with course: ${dbCourse.title}`
@@ -433,9 +432,12 @@ exports.addOrModifyCourses = async (req, res) => {
               }
             } else {
               try {
+                // Create a new certificate if it does not exist
                 const newCertificate = new Certificate({
                   name: certName,
-                  requiredCourses: [{ courseId: dbCourse._id }],
+                  requiredCourses: [
+                    { courseId: dbCourse._id, course: dbCourse.course }, // Add courseId and course
+                  ],
                 });
                 await newCertificate.save();
                 logger.info(
@@ -453,6 +455,7 @@ exports.addOrModifyCourses = async (req, res) => {
         );
       }
     });
+    
 
     res.status(200).json({
       message: `${validCourses.length} courses added/modified successfully`,
@@ -1615,7 +1618,7 @@ exports.isFirstSemester = async (req, res) => {
       logger.info(`First semester not found for user ID: ${userId}`);
       return res.json({
         statusCode: 400,
-        isFirstSemester:true,
+        isFirstSemester: true,
         status: "failure",
         message: "First semester not found for the user",
       });

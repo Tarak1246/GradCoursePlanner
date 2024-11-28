@@ -96,7 +96,7 @@ exports.checkCertificates = async (req, res) => {
     if (results.length === 0) {
       results.push({
         message:
-          "This course does not contribute to any certificate or you have already completed all required certificates.",
+          "This course does not contribute to any certificate.",
         eligible: false,
       });
     }
