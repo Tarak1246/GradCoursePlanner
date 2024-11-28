@@ -34,18 +34,18 @@
 }
 
 .header {
-    display: flex;
-    flex-direction: column;
-    background: #026937;
-    color: #fff;
-    height: 15vh;
+  display: flex;
+  flex-direction: column;
+  background: #026937;
+  color: #fff;
+  height: 15vh;
 }
 
 .footer {
-    display: flex;
-    flex-direction: column;
-    background: #026937;
-    color: #fff;
-    height: 30vh;
-    align-items: center;
+  display: flex;
+  flex-direction: column;
+  background: #026937;
+  color: #fff;
+  height: 30vh;
+  align-items: center;
 }

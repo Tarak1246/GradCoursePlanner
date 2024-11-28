@@ -37,6 +37,7 @@ const ModalContent = ({ isShowModal, closeModal, subjectDetails }) => {
     level,
     category = [],
     certificationRequirements = [],
+    feedback = [],
   } = details;
 
   const renderSection = (label, content) => (
@@ -111,6 +112,20 @@ const ModalContent = ({ isShowModal, closeModal, subjectDetails }) => {
         )}
       </div>
     ),
+    Feedback:
+      feedback.length > 0 ? (
+        feedback?.feedback.map(({ name, feedback, semester, year, date }) => (
+          <div className="mb-5">
+            {renderSection("Name", name)}
+            {renderSection("Feedback", feedback)}
+            {renderSection("Semester", semester)}
+            {renderSection("Year", year)}
+            {renderSection("Date", date)}
+          </div>
+        ))
+      ) : (
+        <div className="m-5 text-center">No Feedback Available</div>
+      ),
   };
 
   const modalTitle = `Class Details for ${title} ${subject} ${course} ${section}`;

@@ -2,12 +2,21 @@ import React, { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "../Alert/alert";
 import axios from "axios";
-import { handleCourseClick } from "../../api/baseApiUrl";
+import {
+  checkIsFirstSemesterApi,
+  checkSubjectEligibility,
+  fetchCourseRegistrationApi,
+  handleCourseClick,
+} from "../../api/baseApiUrl";
 import ModalContent from "../../Modal/ModalContent";
 
 const Subject = ({ courses, onBack, filters }) => {
   const [subjects] = useState(
-    courses.map((course) => ({ id: course._id, title: course.title }))
+    courses.map((course) => ({
+      id: course._id,
+      title: course.title,
+      credits: course.credits,
+    }))
   );
 
   const [subjectDetails, setSubjectDetails] = useState(null);
@@ -18,6 +27,7 @@ const Subject = ({ courses, onBack, filters }) => {
     message: "",
     type: "default",
   });
+  const [multiAlertMessage, setMultiALertMessage] = useState({});
   const [dialogs, setDialogs] = useState({
     delete: false,
     prereqConfirm: false,
@@ -26,15 +36,8 @@ const Subject = ({ courses, onBack, filters }) => {
   });
 
   const [dialogData, setDialogData] = useState({});
+  const [isFirstSemesterResponse, setIsFirstSemesterResponse] = useState({});
   const jwtToken = localStorage.getItem("jwtToken");
-
-  const api = axios.create({
-    baseURL: "http://localhost:4000/api",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${jwtToken}`,
-    },
-  });
 
   const closeModal = () => {
     setShowDetailsDialog(false);
@@ -43,10 +46,9 @@ const Subject = ({ courses, onBack, filters }) => {
   const showAlert = (message, type = "default") => {
     setAlert({ show: true, message, type });
 
-    // Automatically hide the alert after 3 seconds
     setTimeout(() => {
       setAlert({ show: false, message: "", type: "default" });
-    }, 5000); // Adjust the timeout duration as needed
+    }, 9000);
   };
 
   const toggleDialog = (dialog, isOpen, data = {}) =>
@@ -63,72 +65,21 @@ const Subject = ({ courses, onBack, filters }) => {
 
     if (selectedSubjects?.some((s) => s.id === subject.id)) return;
 
-    const eligibility = await checkSubjectEligibility(subject.id);
+    const eligibility = await checkSubjectEligibility(
+      subject.id,
+      toggleDialog,
+      subjects
+    );
     if (eligibility === true) addSubject(subject);
-  };
-
-  const checkSubjectEligibility = async (subjectId) => {
-    try {
-      const response = await axios.get(
-        `http://localhost:4000/api/subject-details/${subjectId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        }
-      );
-
-      const data = response.data;
-
-      if (data.courseCheck && data.courseCheck.isValid === false) {
-        toggleDialog("error", true, { message: data.courseCheck.message });
-        return false;
-      } else if (
-        data.courseCheck &&
-        data.courseCheck.isValid &&
-        data.prerequisites &&
-        data.prerequisites.eligible === false
-      ) {
-        toggleDialog("prereqConfirm", true, {
-          message: `Have you completed these prerequisites: ${data.prerequisites.unmetPrerequisites.join(
-            ", "
-          )}?`,
-          subject: subjects.find((s) => s.id === subjectId),
-          certificates: data.certificateEligibility, // Include certificates data
-        });
-        return false;
-      } else if (
-        data.courseCheck &&
-        data.courseCheck.isValid &&
-        data.prerequisite &&
-        data.prerequisites.eligible &&
-        data.certificateEligibility &&
-        data.certificateEligibility.length > 0
-      ) {
-        toggleDialog("certificate", true, {
-          certificates: data.certificateEligibility,
-        });
-      }
-
-      return true;
-    } catch (error) {
-      const errorMessage =
-        error.response?.data?.message ||
-        "Failed to verify subject eligibility. Please try again.";
-      toggleDialog("error", true, { message: errorMessage });
-      return false;
-    }
   };
 
   const addSubject = (subject) =>
     setSelectedSubjects([...selectedSubjects, subject]);
 
   const handlePreReqConfirm = (confirmed) => {
-    // Close the dialog
     toggleDialog("prereqConfirm", false);
 
     if (confirmed) {
-      // Add the subject
       addSubject(dialogData.subject);
 
       // Check for certification eligibility after adding the subject
@@ -141,13 +92,13 @@ const Subject = ({ courses, onBack, filters }) => {
       // Update dialogData to keep track of user response
       setDialogData((prev) => ({
         ...prev,
-        userConfirmedPrerequisite: true, // User clicked Yes
+        userConfirmedPrerequisite: true,
       }));
     } else {
       // Update dialogData to track user rejected prerequisites
       setDialogData((prev) => ({
         ...prev,
-        userConfirmedPrerequisite: false, // User clicked No
+        userConfirmedPrerequisite: false,
       }));
     }
   };
@@ -163,6 +114,13 @@ const Subject = ({ courses, onBack, filters }) => {
   };
 
   const handleRegister = async () => {
+    const totalCredits = selectedSubjects?.reduce(
+      (total, course) => total + parseInt(course.credits, 10),
+      0
+    );
+
+    checkIsFirstSemesterApi(setIsFirstSemesterResponse, filters);
+
     if (selectedSubjects?.length === 0) {
       showAlert(
         "Please select at least one subject before registering.",
@@ -171,31 +129,27 @@ const Subject = ({ courses, onBack, filters }) => {
       return;
     }
 
-    if (selectedSubjects?.length > 1) {
+    if (isFirstSemesterResponse?.isFirstSemester && totalCredits > 6) {
       showAlert(
-        "You can only register for one subject at a time.",
+        "You exceed the limit for total credit that can be registered.",
         "destructive"
       );
       return;
     }
 
-    try {
-      const response = await api.get(
-        `/courses/register-course/${selectedSubjects?.map(
-          (subject) => subject.id
-        )}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        }
+    if (!isFirstSemesterResponse?.isFirstSemester && totalCredits > 9) {
+      showAlert(
+        "You exceed the limit for total credit that can be registered.",
+        "destructive"
       );
-
-      showAlert(response?.data?.message, "default");
-    } catch (error) {
-      showAlert(error.response?.data?.message || error.message, "destructive");
+      return;
     }
+
+    fetchCourseRegistrationApi(
+      selectedSubjects,
+      setMultiALertMessage,
+      showAlert
+    );
   };
 
   const Dialog = ({ isOpen, title, children, onClose }) =>
@@ -239,7 +193,7 @@ const Subject = ({ courses, onBack, filters }) => {
               {onDelete && (
                 <button
                   onClick={(e) => {
-                    e.stopPropagation(); // Prevent triggering onClick for the parent
+                    e.stopPropagation();
                     onDelete(subject);
                   }}
                   className="text-red-500 hover:text-red-700">
@@ -258,9 +212,9 @@ const Subject = ({ courses, onBack, filters }) => {
   };
 
   const output = Object.values(filters)
-    .flat() // Flattens the array values
-    .filter((item) => item) // Removes empty arrays or falsy values
-    .join(" -> "); // Joins the elements with '->'
+    .flat()
+    .filter((item) => item)
+    .join(" -> ");
 
   return (
     <>
@@ -318,6 +272,23 @@ const Subject = ({ courses, onBack, filters }) => {
                   <AlertDescription>{alert.message}</AlertDescription>
                 </Alert>
               )}
+
+              {
+                <div className="mt-5">
+                  {multiAlertMessage?.results?.map((result, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        color: result.status === "failure" ? "red" : "green",
+                        marginBottom: "10px",
+                      }}>
+                      {result.status === "failure"
+                        ? `❌ Failed to Register ${result.courseTitle}: ${result.reason}`
+                        : `✅ Successfully Registered ${result.courseTitle} !!`}
+                    </div>
+                  ))}
+                </div>
+              }
             </div>
           </div>
         </main>

@@ -1,10 +1,10 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const programOfStudySchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
       index: true, // Index for faster queries
       unique: true, // Each user can have only one program of study
@@ -13,19 +13,19 @@ const programOfStudySchema = new mongoose.Schema(
       {
         courseId: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: 'Course',
+          ref: "Course",
           required: true, // Every course entry must have a reference
         },
         status: {
           type: String,
-          enum: ['Planned', 'Completed', 'Dropped'],
-          default: 'Planned', // Initially set to 'Planned'
+          enum: ["Planned", "Completed", "Dropped"],
+          default: "Planned", // Initially set to 'Planned'
         },
         grade: {
           type: String,
-          enum: ['A', 'B', 'C', 'D', 'F', 'P', 'NP'], // Support various grading systems
+          enum: ["A", "B", "C", "D", "F", "P", "NP"], // Support various grading systems
           required: function () {
-            return this.status === 'Completed';
+            return this.status === "Completed";
           }, // Grade is only required for completed courses
         },
         marks: {
@@ -33,7 +33,7 @@ const programOfStudySchema = new mongoose.Schema(
           min: 0,
           max: 1000,
           required: function () {
-            return this.status === 'Completed';
+            return this.status === "Completed";
           },
         },
         totalMarks: {
@@ -41,12 +41,12 @@ const programOfStudySchema = new mongoose.Schema(
           min: 0,
           max: 1000,
           required: function () {
-            return this.status === 'Completed';
+            return this.status === "Completed";
           },
         },
         semesterTaken: {
           type: String,
-          enum: ['spring', 'summer', 'fall'],
+          enum: ["spring", "summer", "fall"],
           required: true,
         },
         yearTaken: {
@@ -57,24 +57,24 @@ const programOfStudySchema = new mongoose.Schema(
           type: Number,
           required: true,
         },
-        days:{
+        days: {
           type: String,
           required: true,
         },
-        time:{
+        time: {
           type: String,
           required: true,
         },
-        attribute:{
+        attribute: {
           type: String,
           required: true,
-        }
+        },
       },
     ],
     completionStatus: {
       type: String,
-      enum: ['In Progress', 'Completed', 'Not Started'],
-      default: 'In Progress',
+      enum: ["In Progress", "Completed", "Not Started"],
+      default: "In Progress",
     },
     gpa: {
       type: Number,
@@ -125,6 +125,6 @@ const programOfStudySchema = new mongoose.Schema(
 );
 
 // Index userId and courses for faster queries
-programOfStudySchema.index({ userId: 1, 'courses.courseId': 1 });
+programOfStudySchema.index({ userId: 1, "courses.courseId": 1 });
 
-module.exports = mongoose.model('ProgramOfStudy', programOfStudySchema);
+module.exports = mongoose.model("ProgramOfStudy", programOfStudySchema);
