@@ -5,6 +5,7 @@ const certificateSchema = new mongoose.Schema({
   requiredCourses: [
     {
       courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
+      course : { type: String, ref: 'Course', required: true },
     },
   ], // List of courses required for the certificate
 });
