@@ -92,7 +92,6 @@ exports.getAllCourses = async (req, res) => {
 exports.filterCourses = async (req, res) => {
   try {
     const filters = req.body;
-    const { title } = req.body;
 
     if (!filters || Object.keys(filters).length === 0) {
       logger.warn("No filters provided in the request");
@@ -174,8 +173,6 @@ exports.filterCourses = async (req, res) => {
     });
   }
 };
-
-
 
 exports.getCourseDetails = async (req, res) => {
   try {
@@ -911,10 +908,13 @@ exports.getEnumValues = async (req, res) => {
 exports.updateCourseCompletion = async (req, res) => {
   try {
     const userId = req?.user?.id;
-    const { courseId, course, title, grade, marks, totalMarks, feedback } = req.body;
+    const { courseId, course, title, grade, marks, totalMarks, feedback } =
+      req.body;
 
     if (!userId || !courseId || !course || !title) {
-      logger.warn("Invalid input: userId, courseId, course, and title are required");
+      logger.warn(
+        "Invalid input: userId, courseId, course, and title are required"
+      );
       return res.status(400).json({
         statusCode: 400,
         status: "failure",
@@ -1613,7 +1613,9 @@ exports.isFirstSemester = async (req, res) => {
       !programOfStudy.firstSemester?.year
     ) {
       logger.info(`First semester not found for user ID: ${userId}`);
-      return res.status(404).json({
+      return res.json({
+        statusCode: 400,
+        isFirstSemester:true,
         status: "failure",
         message: "First semester not found for the user",
       });
@@ -1627,14 +1629,17 @@ exports.isFirstSemester = async (req, res) => {
     logger.info(
       `Checked first semester for user ID: ${userId} - Result: ${isMatch}`
     );
-    return res.status(200).json({
+    return res.json({
+      statusCode: 200,
       status: "success",
       message: "First semester comparison completed successfully",
       isFirstSemester: isMatch,
     });
   } catch (error) {
     logger.error("Error validating first semester", { error: error.message });
-    return res.status(500).json({
+    return res.json({
+      statusCode: 500,
+      isFirstSemester: false,
       status: "failure",
       message: "Internal server error",
     });
