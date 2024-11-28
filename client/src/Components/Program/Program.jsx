@@ -3,31 +3,61 @@ import "./Program.css";
 import { programData } from "../../api/baseApiUrl";
 
 const Table = ({ data, columns, onEdit }) => {
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+
+  // Function to sort data
+  const sortedData = React.useMemo(() => {
+    if (!sortConfig.key) return data;
+
+    return [...data].sort((a, b) => {
+      if (a[sortConfig.key] < b[sortConfig.key]) {
+        return sortConfig.direction === "asc" ? -1 : 1;
+      }
+      if (a[sortConfig.key] > b[sortConfig.key]) {
+        return sortConfig.direction === "asc" ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [data, sortConfig]);
+
+  // Function to handle sorting
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+
   return (
     <div className="tablediv" style={{ overflowX: "auto" }}>
-    <table style={{ borderCollapse: "collapse", width: "100%" }}>
+      <table style={{ borderCollapse: "collapse", width: "100%" }}>
         <thead>
           <tr>
             {columns.map((col) => (
               <th
                 key={col.accessor}
+                onClick={() => handleSort(col.accessor)}
                 style={{
                   border: "1px solid #ddd",
                   padding: "8px",
                   textAlign: "left",
                   backgroundColor: "#f4f4f4",
+                  cursor: "pointer",
                 }}
               >
                 {col.header}
+                {sortConfig.key === col.accessor && (
+                  <span style={{ marginLeft: "8px" }}>
+                    {sortConfig.direction === "asc" ? "▲" : "▼"}
+                  </span>
+                )}
               </th>
             ))}
-            <th>
-              Action
-            </th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
-          {data.map((row, rowIndex) => (
+          {sortedData.map((row, rowIndex) => (
             <tr key={rowIndex}>
               {columns.map((col) => (
                 <td
@@ -41,7 +71,7 @@ const Table = ({ data, columns, onEdit }) => {
                   {row[col.accessor]}
                 </td>
               ))}
-               <td>
+              <td>
                 <button onClick={() => onEdit(row)}>Edit</button>
               </td>
             </tr>
@@ -136,13 +166,13 @@ const [data, setData] = useState([]);
 
   const handleSave = () => {
     const updatedData = data.map((row) =>
-      row.crn === editRow.crn ? { ...row, grade: updatedField } : row
+      row.crn === editRow.crn ? { ...row, grade: updatedField} : row
     );
     setData(updatedData); // Update the `data` state
 
     // Update `rawData` to maintain consistency
     const updatedRawData = rawData.map((item) =>
-      item.crn === editRow.crn ? { ...item, grade: updatedField } : item
+      item.crn === editRow.crn ? { ...item, grade: updatedField, status: "Completed" } : item
     );
     setRawData(updatedRawData);
   
@@ -214,7 +244,7 @@ const [data, setData] = useState([]);
             </div>
             </div>
             <div className="modal-editdiv">
-            <p><strong>Grade:</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <p><strong>Grade:</strong> &nbsp;&nbsp;&nbsp;
             <select 
                 value={updatedField} 
                 onChange={(e) => setUpdatedField(e.target.value)}
