@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./Program.css";
-import { programData } from "../../api/baseApiUrl";
+import { deleteCourse, programData, updateCourseGrade } from "../../api/baseApiUrl";
+import { FaEdit, FaTrash } from "react-icons/fa";
 
-const Table = ({ data, columns, onEdit }) => {
+const Table = ({ data, columns, onEdit, onDelete }) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
+  
   // Function to sort data
   const sortedData = React.useMemo(() => {
     if (!sortConfig.key) return data;
@@ -71,9 +73,17 @@ const Table = ({ data, columns, onEdit }) => {
                   {row[col.accessor]}
                 </td>
               ))}
-              <td>
-                <button onClick={() => onEdit(row)}>Edit</button>
-              </td>
+               <td className="action-cell">
+                  {/* Edit Button with Icon */}
+                  <button onClick={() => onEdit(row)} className="action-button edit-button">
+                    <FaEdit className="icon" /> 
+                  </button>
+
+                  {/* Delete Button with Icon */}
+                  {row.status !== "Completed" && (<button onClick={() => onDelete(row)} className="action-button delete-button">
+                    <FaTrash className="icon" /> 
+                  </button>)}
+                </td>
             </tr>
           ))}
         </tbody>
@@ -95,7 +105,7 @@ const columns = [
 
 function Program() {
   const [rawData, setRawData] = useState([]);
-const [data, setData] = useState([]);
+  const [data, setData] = useState([]);
   const [programStatus, setProgramStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [cegCredits, setCegCredits] = useState(0);
@@ -104,11 +114,13 @@ const [data, setData] = useState([]);
   const [gpa, setGpa] = useState(0);
   const [lowerLevelCredits, setLowerLevelCredits] = useState(0);
   const [totalCredits, setTotalCredits] = useState(0);
+  const feedbackRef = useRef();
   // Fetch program data
 
    
   const [editRow, setEditRow] = useState(null);
   const [updatedField, setUpdatedField] = useState("");
+  const [deleteRow, setDeleteRow] = useState(null);
 
   const getProgramdata = async () => {
     try {
@@ -135,36 +147,73 @@ const [data, setData] = useState([]);
     }
   };
 
+  const updateGrade = async (courseData) => {
+    try {
+      console.warn("updating program data...");
+      const response = await updateCourseGrade(courseData);
+      if(response.status===200){
+      setGpa(response.data.gpa);
+      console.log(response);
+      }else{
+        console.log(response);
+        alert("Failed to update the course grade. Please try again.");
+      }
+      
+
+    }catch (error) {
+      console.error("Error fetching program data:", error);
+    }
+  }
   // Call API once when component mounts
   useEffect(() => {
-    getProgramdata();
-  }, []);
+    
+      getProgramdata();
+    
+    }, []);
 
   // Map data for the table
   useEffect(() => {
-    const mappedData = rawData.map((item) => ({
-      crn: item.crn,
-      level: `${item.subject} ${item.course}`,
-      title: item.title,
-      semester: `${item.semesterTaken} ${item.yearTaken}`,
-      credits: item.credits,
-      status: item.status,
-      grade: item.grade,
-    }));
-    setData(mappedData);
+   // Check if rawData is an array and has data
+   if (Array.isArray(rawData) && rawData.length > 0) {
+    try {
+      const mappedData = rawData.map((item) => ({
+        crn: item.crn,
+        level: `${item.subject} ${item.course}`,
+        title: item.title,
+        semester: `${item.semesterTaken} ${item.yearTaken}`,
+        credits: item.credits,
+        status: item.status,
+        grade: item.grade,
+      }));
+
+      // Set the data with the mapped data
+      setData(mappedData);
+    } catch (error) {
+      console.error("Error mapping rawData:", error);
+    }
+  } else {
+    console.warn("rawData is either empty or not an array");
+    // Handle the case where rawData is empty or undefined
+  }
   }, [rawData]); // Dependency on rawData
 
   if (loading) {
     return <div>Loading...</div>;
   }
   
-
+  const handleDelete = (row) => {
+    setDeleteRow(row);
+  };
+  
+  
   const handleEdit = (row) => {
     setEditRow(row);  // Store the row to be edited
     setUpdatedField(row.grade);  // Initialize the input with the field value
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    // Get the feedback text from the input
+    const feedbackText = feedbackRef.current.value;
     const updatedData = data.map((row) =>
       row.crn === editRow.crn ? { ...row, grade: updatedField} : row
     );
@@ -175,14 +224,72 @@ const [data, setData] = useState([]);
       item.crn === editRow.crn ? { ...item, grade: updatedField, status: "Completed" } : item
     );
     setRawData(updatedRawData);
+    // Extract the updated row
+    const updatedRow = updatedRawData.find((item) => item.crn === editRow.crn);
+
+    // Format the data to match `courseData` structure
+    const courseData = {
+      courseId: updatedRow.courseId,
+      title: updatedRow.title,
+      grade: updatedRow.grade,
+      marks: 90,
+      totalMarks: 100,
+      course: updatedRow.course,
+      feedback: feedbackText, // Include feedback text
+    };
+
+    try {
+      // Call `updateGrade` with formatted data
+      await updateGrade(courseData);
+    } catch (error) {
+      console.error("Error updating grade:", error);
+    }
   
     setEditRow(null); // Close the modal after saving
   };
 
-  const handleClose = () => {
-    setEditRow(null);  // Close the modal without saving
+  const handleDeleteSave = async () => {
+    try {
+      // Find the row to delete
+      const rowToDelete = rawData.find((item) => item.crn === deleteRow.crn);
+  
+      if (!rowToDelete) {
+        console.error("Row not found for deletion");
+        return;
+      }
+  
+      // Call the backend API to delete the course
+    const response = await deleteCourse(rowToDelete.courseId); 
+    console.log(response);
+    if(response.status===200){
+    const updatedData = data.filter((row) => row.crn !== deleteRow.crn);
+    const updatedRawData = rawData.filter((item) => item.crn !== deleteRow.crn);
+
+    // Update state with the remaining rows
+    setData(updatedData);
+    setRawData(updatedRawData);
+    }
+    else{
+      alert(response.data.message);
+      console.warn(response);
+    }
+    }
+    catch (error) {
+      console.error("Error deleting course:", error);
+      alert("Failed to delete the course. Please try again.");
+    } finally {
+      setDeleteRow(null); // Close the modal after saving
+      
+    }
+   
   };
 
+
+  const handleClose = () => {
+    setEditRow(null);  // Close the modal without saving
+    setDeleteRow(null);
+  };
+ 
 
   return (
     <div>
@@ -224,13 +331,24 @@ const [data, setData] = useState([]);
           <p><strong>GPA</strong>:&nbsp;{gpa}/4</p>
         </div>
       </div>
-      <Table data={data} columns={columns} onEdit={handleEdit} />
+        {rawData && Array.isArray(rawData) && rawData.length > 0 ? (
+            <Table data={data} columns={columns} onEdit={handleEdit} onDelete={handleDelete} />
+          
+        ) : (
+          <div>No data available. Please register the courses.</div>
+        )}
+      
       
       {editRow && (
         <div className="modal" style={{ display: "block" }}>
           <div className="modal-content">
             <div className="modal-headerdiv">
             <p className="model-headtxt">Upadate your Grade</p>
+            <div>
+            <button className="modal-close-btn" onClick={handleClose}>
+              × 
+            </button>
+            </div>
             </div>
             <div className="modal-bodydiv">
             <div className="modal-text1">
@@ -260,10 +378,40 @@ const [data, setData] = useState([]);
             </div>
             <div>
               <p><strong>Feedback:</strong></p>
-              <input type="text" className="feedbacktext"/>
+              <input type="text" className="feedbacktext" ref={feedbackRef}/>
               </div>
             <div className="modal-buttondiv">
             <button className="model-button" onClick={handleSave}>Save</button>
+            <button className="model-button" onClick={handleClose}>Close</button>
+            
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteRow && (
+        <div className="modal" style={{ display: "block" }}>
+          <div className="modal-deletecontent">
+            <div className="modal-headerdiv">
+            <p className="model-deleteheadtxt">Are you sure you want to drop this course</p>
+            <div>
+            <button className="modal-close-btn" onClick={handleClose}>
+              × 
+            </button>
+            </div>
+            </div>
+            <div className="modal-bodydiv">
+            <div className="modal-text1">
+            <p><strong>Title:</strong> {deleteRow.title}</p>
+            <p><strong>Semester:</strong> {deleteRow.semester}</p>
+            </div>
+            <div className="modal-text2">
+            <p><strong>CRN:</strong> {deleteRow.crn}</p>
+            <p><strong>Level:</strong> {deleteRow.level}</p>
+            <p><strong>Credits:</strong> {deleteRow.credits}</p>
+            </div>
+            </div>
+            <div className="modal-buttondiv">
+            <button className="model-button" onClick={handleDeleteSave}>Delete</button>
             <button className="model-button" onClick={handleClose}>Close</button>
             
             </div>

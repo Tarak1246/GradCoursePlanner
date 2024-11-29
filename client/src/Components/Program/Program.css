@@ -97,12 +97,28 @@ table {
     height: 64vh;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   }
+  .modal-deletecontent{
+    margin: auto;
+    margin-top: 7rem;
+    display: grid;
+    background-color: white;
+    padding: 15px 50px;
+    border-radius: 5px;
+    width: 566px;
+    height: 35vh;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
   .modal-headerdiv{
     display: flex;
     flex-direction: row;
   }
   .model-headtxt{
     font-size: xx-large;
+    font-weight: 600;
+  }
+  .model-deleteheadtxt{
+    font-size: larger;
     font-weight: 600;
   }
   .modal-bodydiv{
@@ -164,3 +180,62 @@ table {
     background: linear-gradient(45deg, #71a759, #21480e);
 }
  
+/* Container for action buttons */
+.action-cell {
+  text-align: center;
+}
+
+/* Shared styles for buttons */
+.action-button {
+  border: none;
+  border-radius: 5px;
+  padding: 5px 10px;
+  display: inline-flex;
+  align-items: center;
+  margin-right: 10px;
+  font-size: 14px;
+  color: white;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Icon styling */
+.icon {
+  margin-right: 5px;
+  font-size: 16px;
+}
+
+/* Edit Button specific styles */
+.edit-button {
+  background: linear-gradient(90deg, #4CAF50, #81C784); /* Green gradient */
+}
+
+.edit-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2); /* Shadow effect */
+}
+
+/* Delete Button specific styles */
+.delete-button {
+  background: linear-gradient(90deg, #FF5252, #FF1744); /* Red gradient */
+}
+
+.delete-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2); /* Shadow effect */
+}
+
+.modal-close-btn {
+  position: absolute;
+    top: 102px;
+    right: 380px;
+    background: transparent;
+    border: none;
+    font-size: 40px;
+    cursor: pointer;
+    color: #999;
+}
+
+.modal-close-btn:hover {
+  color: #333; /* Darker color on hover */
+}

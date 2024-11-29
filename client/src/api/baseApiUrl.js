@@ -283,3 +283,40 @@ export const checkSubjectEligibility = async (
     return false;
   }
 };
+
+export const updateCourseGrade = async (courseData) => {
+  const jwtToken = localStorage.getItem("jwtToken");
+  try {
+    const response = await axios.put(
+      `${baseApiUrl}/courses/update-course-completion`,
+      courseData, // Body of the request
+      {
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+        },
+      }
+    );
+
+    return response;
+  } catch (error) {
+    throw new Error(`Error Course updation: ${error.response?.data?.message || error.message}`);
+  }
+};
+
+export const deleteCourse = async (courseId) => {
+  const jwtToken = localStorage.getItem("jwtToken");
+  try {
+    const response = await axios.delete(
+      `${baseApiUrl}/courses/${courseId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+        },
+      }
+    );
+
+    return response;
+  } catch (error) {
+    throw new Error(`Error Course updation: ${error.response?.data?.message || error.message}`);
+  }
+};
