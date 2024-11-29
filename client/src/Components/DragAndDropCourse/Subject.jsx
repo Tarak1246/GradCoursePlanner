@@ -237,7 +237,7 @@ const Subject = ({ courses, onBack, filters }) => {
             <h5 className="ps-6 my-2 font-semibold">{output}</h5>
             <div className=" bg-gray-50 p-6">
               <div className="grid md:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-lg shadow">
+                <div className="bg-white p-6 rounded-lg shadow overflow-auto max-h-[30rem]">
                   <h2 className="text-xl font-semibold mb-4">
                     Available Subjects
                   </h2>
@@ -248,7 +248,7 @@ const Subject = ({ courses, onBack, filters }) => {
                   />
                 </div>
                 <div
-                  className="bg-white p-6 rounded-lg shadow border-2 border-dashed border-gray-300"
+                  className="bg-white p-6 rounded-lg shadow border-2 border-dashed border-gray-300 overflow-auto max-h-[30rem]"
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={handleDrop}>
                   <h2 className="text-xl font-semibold mb-4">

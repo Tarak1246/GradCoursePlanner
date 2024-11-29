@@ -48,7 +48,7 @@ const AreaOfInterest = () => {
             {Object.entries(sectionData).map(([category, courses]) => (
               <div
                 key={category}
-                className="bg-white m-2 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 area-card">
+                className="bg-white m-2 rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 area-card overflow-auto max-h-[26rem]">
                 <div className="flex items-center mb-4">
                   <h3 className="text-xl font-semibold text-gray-800">
                     {category}
