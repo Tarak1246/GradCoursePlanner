@@ -14,7 +14,23 @@ const programOfStudySchema = new mongoose.Schema(
         courseId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Course",
-          required: true, // Every course entry must have a reference
+          required: true,
+        },
+        crn: {
+          type: String,
+          required: true,
+        },
+        course:{
+          type: String,
+          required: true,
+        },
+        title: {
+          type: String,
+          required: true,
+        },
+        subject: {
+          type: String,
+          required: true,
         },
         status: {
           type: String,

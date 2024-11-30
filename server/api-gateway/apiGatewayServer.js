@@ -66,7 +66,9 @@ app.get("/api/subject-details/:courseId", async (req, res) => {
         axios.get(courseCheckerUrl, { headers: authHeaders }),
         axios.get(certificateCheckerUrl, { headers: authHeaders }),
       ]);
-
+console.log(prerequisiteResponse)
+console.log(courseResponse)
+console.log(certificateResponse)
     const consolidatedResponse = {
       prerequisites:
         prerequisiteResponse.status === "fulfilled"

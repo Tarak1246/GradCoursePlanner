@@ -11,101 +11,116 @@ exports.checkCertificates = async (req, res) => {
   try {
     if (!userId) {
       logger.warn("User ID missing in JWT token");
-      return res.status(401).json({
+      return res.json({
+        statusCode: 401,
         status: "rejected",
         message: "Invalid token: User ID missing",
+        eligible: false,
       });
     }
 
     if (!courseId) {
       logger.warn("Invalid request: Missing courseId");
-      return res
-        .status(400)
-        .json({ status: "rejected", message: "courseId is required" });
+      return res.json({
+        statusCode: 400,
+        status: "rejected",
+        message: "courseId is required",
+        eligible: false,
+      });
     }
 
     // Convert IDs to ObjectId
-    userId = new mongoose.Types.ObjectId(userId);
+    let userObjectId = new mongoose.Types.ObjectId(userId);
     courseId = new mongoose.Types.ObjectId(courseId);
 
-    // Fetch the course details
-    const course = await Course.findById(courseId);
+    // Fetch user's ProgramOfStudy and selected course concurrently
+    const [programOfStudy, course] = await Promise.all([
+      ProgramOfStudy.findOne({ userId: userObjectId }).lean(),
+      Course.findById(courseId).lean(),
+    ]);
+
     if (!course) {
       logger.warn(`Course not found with ID: ${courseId}`);
-      return res
-        .status(404)
-        .json({ status: "rejected", message: "Course not found" });
+      return res.json({
+        statusCode: 404,
+        status: "rejected",
+        message: "Course not found",
+        eligible: false,
+      });
     }
 
-    // Fetch the student's program of study
-    const programOfStudy = await ProgramOfStudy.findOne({ userId }).populate(
-      "courses.courseId",
-      "title credits"
-    );
-
+    // Extract completed courses from the program of study
     const completedCourses = programOfStudy
-      ? programOfStudy.courses.filter((c) => c.status === "Completed")
+      ? programOfStudy.courses
+          .filter((c) => c.status === "Completed")
+          .map((c) => c.course.toString())
       : [];
 
-    // Fetch all certificates and populate required courses
-    const certificates = await Certificate.find().populate(
-      "requiredCourses.courseId",
-      "title"
-    );
+    // Fetch certificates where the course is listed in eligible certificates
+    const certificates = await Certificate.find({
+      name: { $in: course.certificationRequirements },
+    }).lean();
+
+    if (certificates.length === 0) {
+      logger.info(`No eligible certificates found for course: ${courseId}`);
+      return res.json({
+        statusCode: 200,
+        status: "fulfilled",
+        data: [],
+        message: "No certificates are associated with this course.",
+        eligible: false,
+      });
+    }
 
     const results = [];
-    certificates.forEach((certificate) => {
-      const requiredCourses = certificate.requiredCourses.map(
-        (c) => c.courseId?._id?.toString() // Ensure we're only dealing with the course IDs
-      );
 
-      const completedCourseIds = completedCourses.map((c) =>
-        c.courseId?._id?.toString()
-      );
-
-      // Calculate remaining courses for the certificate
+    // Check eligibility for each certificate
+    for (const certificate of certificates) {
+      const requiredCourses = certificate.requiredCourses.map((c) => c.course);
       const remainingCourses = requiredCourses.filter(
-        (reqCourseId) => !completedCourseIds.includes(reqCourseId)
+        (reqCourse) => !completedCourses.includes(reqCourse)
       );
 
-      // Check if the selected course contributes to the certificate
-      const isCurrentCourseEligible = requiredCourses.includes(
-        courseId.toString()
-      );
+      const isCurrentCourseEligible = requiredCourses.includes(course.course);
 
       if (isCurrentCourseEligible) {
-        if (remainingCourses.length === 1 && remainingCourses[0] === courseId.toString()) {
-          // Eligible after this course
+        if (
+          remainingCourses.length === 1 &&
+          remainingCourses[0] === course.course
+        ) {
           results.push({
             certificateName: certificate.name,
             message: `You will earn the "${certificate.name}" certificate by completing this course.`,
             eligible: true,
           });
-        } else {
-          // Additional courses required
+        } else if (remainingCourses.length > 0) {
           results.push({
             certificateName: certificate.name,
             message: `You are ${remainingCourses.length} course(s) away from earning the "${certificate.name}" certificate.`,
+            remainingCourses,
+            eligible: true,
+          });
+        } else {
+          results.push({
+            certificateName: certificate.name,
+            message: `You have already earned the "${certificate.name}" certificate.`,
             eligible: true,
           });
         }
+      } else {
+        results.push({
+          certificateName: certificate.name,
+          message: `This course does not contribute to the "${certificate.name}" certificate.`,
+          eligible: false,
+        });
       }
-    });
-
-    // If no certificates apply
-    if (results.length === 0) {
-      results.push({
-        message:
-          "This course does not contribute to any certificate.",
-        eligible: false,
-      });
     }
 
     logger.info(
       `Certificate check results for user ${userId} and course ${courseId}:`,
       results
     );
-    return res.status(200).json({ status: "fulfilled", data: results });
+    return res.json({ statusCode: 200, status: "fulfilled", data: results });
   } catch (error) {
     logger.error(
       `Error checking certificates for user ${userId || "unknown"} and course ${
@@ -113,7 +128,8 @@ exports.checkCertificates = async (req, res) => {
       }:`,
       error
     );
-    return res.status(500).json({
+    return res.json({
+      statusCode: 500,
       status: "rejected",
       message: `Error checking certificates for user ${
         userId || "unknown"
@@ -121,4 +137,3 @@ exports.checkCertificates = async (req, res) => {
     });
   }
 };
-

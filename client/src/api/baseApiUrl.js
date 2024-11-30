@@ -62,11 +62,11 @@ export const handleCourseClick = async (
 ) => {
   try {
     setIsModalOpen(true);
-
+    let spltArray = course.split(" ");
     const authToken = localStorage.getItem("jwtToken");
     const response = await axios.post(
       `${baseApiUrl}/courses/filter-courses`,
-      { title: course },
+      { title: spltArray.slice(2).join(" ") },
       {
         headers: {
           "Content-Type": "application/json",
