@@ -173,7 +173,8 @@ export const fetchEnumValues = async (
 export const fetchCourseRegistrationApi = async (
   selectedSubjects,
   setMultiALertMessage,
-  showAlert
+  showAlert,
+  setSelectedSubjects
 ) => {
   const jwtToken = localStorage.getItem("jwtToken");
 
@@ -195,6 +196,7 @@ export const fetchCourseRegistrationApi = async (
 
     setTimeout(() => {
       setMultiALertMessage({});
+      setSelectedSubjects([]);
     }, 9000);
   } catch (error) {
     showAlert(error.response?.data?.message || error.message, "destructive");

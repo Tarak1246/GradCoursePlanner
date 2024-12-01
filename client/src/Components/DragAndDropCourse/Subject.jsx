@@ -39,7 +39,6 @@ const Subject = ({ courses, onBack, filters }) => {
 
   const [dialogData, setDialogData] = useState({});
   const [isFirstSemesterResponse, setIsFirstSemesterResponse] = useState({});
-  const jwtToken = localStorage.getItem("jwtToken");
 
   const closeModal = () => {
     setShowDetailsDialog(false);
@@ -133,7 +132,7 @@ const Subject = ({ courses, onBack, filters }) => {
 
     if (isFirstSemesterResponse?.isFirstSemester && totalCredits > 6) {
       showAlert(
-        "You exceed the limit for total credit that can be registered.",
+        "You can only register for 6 credits in your first semester.",
         "destructive"
       );
       return;
@@ -141,7 +140,7 @@ const Subject = ({ courses, onBack, filters }) => {
 
     if (!isFirstSemesterResponse?.isFirstSemester && totalCredits > 9) {
       showAlert(
-        "You exceed the limit for total credit that can be registered.",
+        "You can only register for 9 credit for this semester.",
         "destructive"
       );
       return;
@@ -150,7 +149,8 @@ const Subject = ({ courses, onBack, filters }) => {
     fetchCourseRegistrationApi(
       selectedSubjects,
       setMultiALertMessage,
-      showAlert
+      showAlert,
+      setSelectedSubjects
     );
   };
 
@@ -277,18 +277,20 @@ const Subject = ({ courses, onBack, filters }) => {
 
               {
                 <div className="mt-5">
-                  {multiAlertMessage?.results?.map((result, index) => (
-                    <div
-                      key={index}
-                      style={{
-                        color: result.status === "failure" ? "red" : "green",
-                        marginBottom: "10px",
-                      }}>
-                      {result.status === "failure"
-                        ? `❌ Failed to Register ${result.courseTitle}: ${result.reason}`
-                        : `✅ Successfully Registered ${result.courseTitle} !!`}
-                    </div>
-                  ))}
+                  {multiAlertMessage?.results?.map((result, index) => {
+                    return (
+                      <div
+                        key={index}
+                        style={{
+                          color: result.status === "failure" ? "red" : "green",
+                          marginBottom: "10px",
+                        }}>
+                        {result.status === "failure"
+                          ? `❌ Failed to Register ${result.courseTitle}: ${result.reason}`
+                          : `✅ Successfully Registered ${result.courseTitle} !!`}
+                      </div>
+                    );
+                  })}
                 </div>
               }
             </div>
