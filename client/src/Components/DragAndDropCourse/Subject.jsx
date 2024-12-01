@@ -16,6 +16,8 @@ const Subject = ({ courses, onBack, filters }) => {
       id: course._id,
       title: course.title,
       credits: course.credits,
+      course: course.course,
+      subject: course.subject,
     }))
   );
 
@@ -189,7 +191,7 @@ const Subject = ({ courses, onBack, filters }) => {
               draggable={isDraggable}
               onDragStart={(e) => onDragStart && onDragStart(e, subject)}
               className="p-3 bg-gray-50 rounded flex justify-between items-center cursor-pointer hover:bg-gray-100">
-              <span>{subject.title}</span>
+              <span>{`${subject.subject} ${subject.course} ${subject.title}`}</span>
               {onDelete && (
                 <button
                   onClick={(e) => {

@@ -6,11 +6,11 @@ const Modal = ({ title, sections, onClose }) => {
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-        <div className="bg-white border-2 rounded shadow-lg w-full max-w-2xl mx-4 overflow-auto max-h-[40rem]">
+        <div className="bg-white border-2 rounded shadow-lg w-full max-w-[47rem] mx-4 overflow-auto max-h-[40rem]">
           <div className="relative">
             {title && (
               <div className="p-4 pb-2 border-b bg-gray-50">
-                <h1 className="text-[18px] font-bold text-green-800">
+                <h1 className="text-[18px] font-bold text-green-800 flex items-center">
                   {title}
                 </h1>
               </div>
@@ -18,7 +18,7 @@ const Modal = ({ title, sections, onClose }) => {
             <div>
               <button
                 onClick={onClose}
-                className="absolute top-3 right-3 text-gray-200 text-center text-[24px] hover:text-gray-900  bg-green-800 w-6 h-6 border pb-2 py-0.5 rounded flex justify-center items-center">
+                className="absolute top-[1.07rem] right-3 text-gray-200 text-center text-[24px] hover:text-gray-900 bg-green-800 w-6 h-6 border pb-2 py-0.5 rounded flex justify-center items-center">
                 &times;
               </button>
             </div>

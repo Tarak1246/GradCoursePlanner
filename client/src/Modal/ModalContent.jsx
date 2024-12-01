@@ -128,7 +128,7 @@ const ModalContent = ({ isShowModal, closeModal, subjectDetails }) => {
       ),
   };
 
-  const modalTitle = `Class Details for ${title} ${subject} ${course} ${section}`;
+  const modalTitle = `Class Details for ${title} ${subject} ${course} ${section} ${semester}  ${year}`;
 
   return <Modal onClose={closeModal} sections={sections} title={modalTitle} />;
 };
