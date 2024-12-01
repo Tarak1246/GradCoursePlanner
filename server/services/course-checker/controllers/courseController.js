@@ -136,7 +136,7 @@ exports.filterCourses = async (req, res) => {
         message: "Invalid or empty filters provided",
       });
     }
-
+console.log("query", query);
     // Fetch courses
     const courses = await Course.find(query).lean();
 
@@ -155,13 +155,13 @@ exports.filterCourses = async (req, res) => {
     const coursesWithFeedback = await Promise.all(
       courses.map(async (course) => {
         // Fetch feedback for the course
-        const feedbacks = await Feedback.find({ courseId: course._id })
+        const feedbacks = await Feedback.find({ course: course.course })
           .populate("userId", "name") // Populate user details
           .lean();
-
+console.log("feedbacks", feedbacks);
         // Format the feedback array
         const formattedFeedback = feedbacks.map((feedback) => ({
-          name: feedback.userId.name,
+          name: feedback?.userId?.name || "Unknown", // Name of the user from User schema
           feedback: feedback.feedback,
           semester: course.semester, // Semester from the course
           year: course.year, // Year from the course
@@ -181,6 +181,7 @@ exports.filterCourses = async (req, res) => {
       values: coursesWithFeedback,
     });
   } catch (error) {
+    console.log("error", error);
     logger.error("Error fetching courses", { error: error.message });
     return res.json({
       statusCode: 500,
@@ -786,14 +787,22 @@ exports.getEnumValues = async (req, res) => {
 exports.updateCourseCompletion = async (req, res) => {
   try {
     const userId = req?.user?.id;
-    const { courseId, course, title, grade, marks, totalMarks, feedback } =
-      req.body;
+    const {
+      courseId,
+      course,
+      subject,
+      title,
+      grade,
+      marks,
+      totalMarks,
+      feedback,
+    } = req.body;
 
-    if (!userId || !courseId || !course || !title) {
+    if (!userId || !courseId || !course || !title || !subject) {
       logger.warn(
-        "Invalid input: userId, courseId, course, and title are required"
+        "Invalid input: userId, courseId, course, subject, and title are required"
       );
-      return res.status(400).json({
+      return res.json({
         statusCode: 400,
         status: "failure",
         message: "userId, courseId, course, and title are required",
@@ -864,18 +873,21 @@ exports.updateCourseCompletion = async (req, res) => {
     if (totalMarks !== undefined) courseData.totalMarks = totalMarks;
     courseData.status = "Completed";
 
-    // Update feedback if provided
     if (feedback) {
       await Feedback.findOneAndUpdate(
-        { userId, courseId, course, title },
+        { userId, course, subject },
         {
-          $set: { feedback, updatedDate: Date.now() },
+          $set: {
+            title,
+            feedback,
+            updatedDate: Date.now(),
+          },
           $setOnInsert: { createdDate: Date.now() },
         },
         { new: true, upsert: true }
       );
       logger.info(
-        `Feedback updated for userId: ${userId}, courseId: ${courseId}`
+        `Feedback updated for userId: ${userId}, course: ${course}, subject: ${subject}`
       );
     }
 
@@ -907,7 +919,7 @@ exports.updateCourseCompletion = async (req, res) => {
     await programOfStudy.save();
 
     logger.info(`Successfully updated course completion for userId: ${userId}`);
-    return res.status(200).json({
+    return res.json({
       statusCode: 200,
       status: "success",
       message: "Course updated and GPA recalculated successfully",
@@ -1237,7 +1249,7 @@ exports.registerCourses = async (req, res) => {
           updatedTotalCredits >= 30 ? "Completed" : "In Progress";
 
         await programOfStudy.save();
-console.log("totalCredits", updatedTotalCredits);
+        console.log("totalCredits", updatedTotalCredits);
         if (updatedTotalCredits >= 30) {
           results.push({
             courseId,
@@ -1315,13 +1327,35 @@ exports.getProgramOfStudy = async (req, res) => {
       });
     }
 
-    // Transform the response to include only courseId as a string
+    // Fetch feedback for all courses in the program of study
+    const courseIds = programOfStudy.courses
+      .map((course) => course.course) // Extract the `course` number
+      .filter(Boolean);
+
+    const feedbacks = await Feedback.find({
+      userId: userObjectId,
+      course: { $in: courseIds },
+    })
+      .select("course title feedback createdDate")
+      .lean();
+
+    // Map feedback by `course`
+    const feedbackMap = feedbacks.reduce((map, feedback) => {
+      map[feedback.course] = feedback;
+      return map;
+    }, {});
+
+    // Transform the response to include feedback
     programOfStudy.courses = programOfStudy.courses.map((course) => {
       const { courseId, ...rest } = course;
+      const feedback = feedbackMap[course.course] || null; // Correct mapping using `course.course`
+
       return {
         ...rest,
         courseId: courseId?._id?.toString() || null, // Include only the courseId
         ...courseId, // Merge the populated fields from the courseId
+        feedback: feedback ? feedback.feedback : null, // Include feedback if available
+        feedbackDate: feedback ? feedback.createdDate : null, // Include feedback creation date
       };
     });
 

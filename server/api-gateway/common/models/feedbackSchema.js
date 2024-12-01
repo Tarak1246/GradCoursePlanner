@@ -12,17 +12,21 @@ const feedbackSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Course",
       required: true,
-      index: true, // Optimized for queries
     },
-    course:{
+    course: {
       type: String,
       ref: "Course",
       required: true,
     },
+    subject: {
+      type: String,
+      required: true,
+      ref: "Course", // New field for subject
+    },
     title: {
       type: String,
       required: true,
-      ref: "Course"
+      ref: "Course",
     },
     feedback: {
       type: String,
@@ -45,7 +49,7 @@ const feedbackSchema = new mongoose.Schema(
   }
 );
 
-// Ensure unique feedback per user and course
-feedbackSchema.index({ userId: 1, courseId: 1 }, { unique: true });
+// Ensure unique feedback per user and subject
+feedbackSchema.index({ userId: 1, course: 1, subject: 1 }, { unique: true });
 
 module.exports = mongoose.model("Feedback", feedbackSchema);
