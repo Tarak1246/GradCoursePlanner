@@ -56,17 +56,16 @@ export const fetchAreaOfInterestData = async (setAreasOfInterest, setError) => {
 
 export const handleCourseClick = async (
   course,
-
   setIsModalOpen,
   setCourseDetails
 ) => {
   try {
     setIsModalOpen(true);
-    let spltArray = course.split(" ");
+
     const authToken = localStorage.getItem("jwtToken");
     const response = await axios.post(
       `${baseApiUrl}/courses/filter-courses`,
-      { title: spltArray.slice(2).join(" ") },
+      { title: course },
       {
         headers: {
           "Content-Type": "application/json",
@@ -299,24 +298,25 @@ export const updateCourseGrade = async (courseData) => {
 
     return response;
   } catch (error) {
-    throw new Error(`Error Course updation: ${error.response?.data?.message || error.message}`);
+    throw new Error(
+      `Error Course updation: ${error.response?.data?.message || error.message}`
+    );
   }
 };
 
 export const deleteCourse = async (courseId) => {
   const jwtToken = localStorage.getItem("jwtToken");
   try {
-    const response = await axios.delete(
-      `${baseApiUrl}/courses/${courseId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${jwtToken}`,
-        },
-      }
-    );
+    const response = await axios.delete(`${baseApiUrl}/courses/${courseId}`, {
+      headers: {
+        Authorization: `Bearer ${jwtToken}`,
+      },
+    });
 
     return response;
   } catch (error) {
-    throw new Error(`Error Course updation: ${error.response?.data?.message || error.message}`);
+    throw new Error(
+      `Error Course updation: ${error.response?.data?.message || error.message}`
+    );
   }
 };
