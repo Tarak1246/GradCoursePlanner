@@ -78,7 +78,7 @@ const Table = ({ data, columns, onEdit, onDelete }) => {
                 {/* Edit Button with Icon */}
                 <button
                   onClick={() => onEdit(row)}
-                  className="action-button edit-button">
+                  className="action-button edit-button bg-green-800">
                   <FaEdit className="icon" />
                 </button>
 
@@ -444,10 +444,14 @@ function Program() {
               <input type="text" className="feedbacktext" ref={feedbackRef} />
             </div>
             <div className="modal-buttondiv">
-              <button className="model-button" onClick={handleSave}>
+              <button
+                className="model-button bg-green-800"
+                onClick={handleSave}>
                 Save
               </button>
-              <button className="model-button" onClick={handleClose}>
+              <button
+                className="model-button bg-green-800"
+                onClick={handleClose}>
                 Close
               </button>
             </div>

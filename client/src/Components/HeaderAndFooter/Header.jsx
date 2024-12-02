@@ -4,7 +4,7 @@ import header_logo from "../Assets/images/wright-header.png";
 
 const Header = () => {
   return (
-    <header className="wsu-header">
+    <header className="wsu-header bg-green-800">
       <div className="wsu-header-container">
         <a href="/" className="wsu-logo">
           <h className="headertxt">Course Planner</h>

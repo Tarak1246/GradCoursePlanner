@@ -26,7 +26,7 @@ export const Navbar = () => {
   return (
     <div className="menucontainer mb-8">
       <div className="menu-bar">
-        <nav>
+        <nav className="pt-2">
           <ul>
             <li>
               <NavLink to="/dashboard">Dashboard</NavLink>
