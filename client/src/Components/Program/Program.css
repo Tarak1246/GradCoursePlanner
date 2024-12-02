@@ -151,6 +151,16 @@ table {
     border-radius: 4px;
     border: 1px solid #ddd;
   }
+  .inputmarks{
+    padding: 8px;
+    width:65px;
+    margin: 10px 0;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+  }
+  .pinputmarks{
+    margin: 0px 50px;
+  }
 
   .feedbacktext{
     padding: 8px;
@@ -162,7 +172,7 @@ table {
   
   /* Button styling for the modal */
   .model-button {
-    background: linear-gradient(45deg, #71a759, #21480e);
+    background: linear-gradient(124deg,#000000, rgb(11 206 125 / 50%));
     width: 116px;
     height: 49px;
     border: none;
@@ -207,7 +217,7 @@ table {
 
 /* Edit Button specific styles */
 .edit-button {
-  background: linear-gradient(90deg, #4CAF50, #81C784); /* Green gradient */
+  background: linear-gradient(124deg,#000000, rgb(11 206 125 / 50%));; /* Green gradient */
 }
 
 .edit-button:hover {

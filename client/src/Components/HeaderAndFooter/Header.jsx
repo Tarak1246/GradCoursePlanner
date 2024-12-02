@@ -7,7 +7,7 @@ const Header = () => {
     <header className="wsu-header">
       <div className="wsu-header-container">
         <a href="/" className="wsu-logo">
-          <img src={header_logo} alt="Wright State University Logo" />
+          <h className="headertxt">Course Planner</h>
         </a>
       </div>
     </header>

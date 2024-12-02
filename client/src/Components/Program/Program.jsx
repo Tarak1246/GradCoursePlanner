@@ -114,6 +114,7 @@ function Program() {
   const [gpa, setGpa] = useState(0);
   const [lowerLevelCredits, setLowerLevelCredits] = useState(0);
   const [totalCredits, setTotalCredits] = useState(0);
+  const [marks, setMarks] = useState(0);
   const feedbackRef = useRef();
   // Fetch program data
 
@@ -221,7 +222,7 @@ function Program() {
 
     // Update `rawData` to maintain consistency
     const updatedRawData = rawData.map((item) =>
-      item.crn === editRow.crn ? { ...item, grade: updatedField, status: "Completed" } : item
+      item.crn === editRow.crn ? { ...item, grade: updatedField, marks: marks , status: "Completed" } : item
     );
     setRawData(updatedRawData);
     // Extract the updated row
@@ -232,7 +233,7 @@ function Program() {
       courseId: updatedRow.courseId,
       title: updatedRow.title,
       grade: updatedRow.grade,
-      marks: 90,
+      marks: updatedRow.marks,
       totalMarks: 100,
       course: updatedRow.course,
       feedback: feedbackText, // Include feedback text
@@ -261,11 +262,12 @@ function Program() {
       // Call the backend API to delete the course
     const response = await deleteCourse(rowToDelete.courseId); 
     console.log(response);
-    if(response.status===200){
+    if(response.status===200 && response.data.statusCode===200){
     const updatedData = data.filter((row) => row.crn !== deleteRow.crn);
     const updatedRawData = rawData.filter((item) => item.crn !== deleteRow.crn);
 
     // Update state with the remaining rows
+    getProgramdata();
     setData(updatedData);
     setRawData(updatedRawData);
     }
@@ -335,7 +337,7 @@ function Program() {
             <Table data={data} columns={columns} onEdit={handleEdit} onDelete={handleDelete} />
           
         ) : (
-          <div>No data available. Please register the courses.</div>
+          <div className="tablediv">No data available. Please register the courses.</div>
         )}
       
       
@@ -375,6 +377,23 @@ function Program() {
                 <option value="F">F</option>
               </select>
             </p>
+            <p className="pinputmarks">
+            <strong>Marks:</strong>&nbsp;&nbsp;&nbsp;
+            <input 
+            className="inputmarks"
+              type="number" 
+              value={marks} 
+              onChange={(e) => {
+                const value = parseInt(e.target.value, 10);
+                if (value >= 0 && value <= 100) {
+                  setMarks(value); // Update marks state if value is valid
+                } else if (e.target.value === '') {
+                  setMarks(''); // Allow clearing the input
+                }
+              }} 
+              placeholder="Enter marks (0-100)" 
+            />
+          </p>
             </div>
             <div>
               <p><strong>Feedback:</strong></p>

@@ -31,7 +31,7 @@
 }
 
 .button {
-    background: linear-gradient(45deg, #71a759, #21480e);
+    background: linear-gradient(124deg,#000000, rgb(11 206 125 / 50%));
     width: 200px;
     border: none;
     border-radius: 8px;
@@ -45,5 +45,5 @@
 
 .button:hover {
     transform: scale(1.1);
-    background: linear-gradient(45deg, #71a759, #21480e);
+    background: linear-gradient(124deg,  rgba(21, 145, 93, 0.5), #235b17);
 }

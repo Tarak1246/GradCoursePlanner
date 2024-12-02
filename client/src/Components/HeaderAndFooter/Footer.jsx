@@ -7,7 +7,7 @@ const Footer = () => {
     <footer className="wsu-footer">
       <div className="wsu-footer-container">
         <a href="/" className="footer-logo">
-          <img src={footer_logo} alt="Wright State University Logo" />
+          
         </a>
       </div>
     </footer>

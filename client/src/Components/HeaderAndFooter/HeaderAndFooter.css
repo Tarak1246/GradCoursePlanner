@@ -1,6 +1,6 @@
 /* Header Styling */
 .wsu-header {
-  background-color: #00693e;
+  background: linear-gradient(124deg,#000000, rgb(11 206 125 / 50%));
   color: white;
   padding: 10px 0;
 }
@@ -11,17 +11,24 @@
   justify-content: space-between;
   padding: 0 20px;
 }
-
+.headertxt{
+  font-size: xx-large;
+    font-weight: bold;
+    margin-left: 20px;
+    font-style: normal;
+    font-family: serif;
+}
 .wsu-logo img {
   height: 50px;
 }
 
 /* Footer Styling */
 .wsu-footer {
-  background-color: #00693e;
+  background: linear-gradient(124deg,#000000, rgb(11 206 125 / 50%));
   color: white;
   padding: 15px 0;
   width: 100%;
+  height: 21vh;
   text-align: center;
 }
 
