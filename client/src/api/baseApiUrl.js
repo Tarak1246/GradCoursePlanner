@@ -197,7 +197,7 @@ export const fetchCourseRegistrationApi = async (
     setTimeout(() => {
       setMultiALertMessage({});
       setSelectedSubjects([]);
-    }, 9000);
+    }, 6000);
   } catch (error) {
     showAlert(error.response?.data?.message || error.message, "destructive");
   }
