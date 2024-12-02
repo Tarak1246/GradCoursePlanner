@@ -56,7 +56,7 @@ exports.checkCertificates = async (req, res) => {
           .map((c) => c.course.toString())
       : [];
 
-    // Fetch certificates where the course is listed in eligible certificates
+    // Fetch certificates associated with the course
     const certificates = await Certificate.find({
       name: { $in: course.certificationRequirements },
     }).lean();
@@ -66,9 +66,12 @@ exports.checkCertificates = async (req, res) => {
       return res.json({
         statusCode: 200,
         status: "fulfilled",
-        data: [],
-        message: "No certificates are associated with this course.",
-        eligible: false,
+        data: [
+          {
+            message: "No certificates are associated with this course.",
+            eligible: false,
+          },
+        ],
       });
     }
 
@@ -77,42 +80,75 @@ exports.checkCertificates = async (req, res) => {
     // Check eligibility for each certificate
     for (const certificate of certificates) {
       const requiredCourses = certificate.requiredCourses.map((c) => c.course);
+      const completedRequiredCourses = completedCourses.filter((c) =>
+        requiredCourses.includes(c)
+      );
       const remainingCourses = requiredCourses.filter(
         (reqCourse) => !completedCourses.includes(reqCourse)
       );
 
       const isCurrentCourseEligible = requiredCourses.includes(course.course);
 
-      if (isCurrentCourseEligible) {
-        if (
-          remainingCourses.length === 1 &&
-          remainingCourses[0] === course.course
+      if (certificate.name === "Big Data") {
+        // Special logic for Big Data certificate
+        if (completedRequiredCourses.length >= 6) {
+          results.push({
+            certificateName: certificate.name,
+            message: `You have already earned the "${certificate.name}" certificate.`,
+            eligible: true,
+          });
+        } else if (
+          completedRequiredCourses.length + 1 === 6 &&
+          isCurrentCourseEligible
         ) {
           results.push({
             certificateName: certificate.name,
             message: `You will earn the "${certificate.name}" certificate by completing this course.`,
             eligible: true,
           });
-        } else if (remainingCourses.length > 0) {
-          results.push({
-            certificateName: certificate.name,
-            message: `You are ${remainingCourses.length} course(s) away from earning the "${certificate.name}" certificate.`,
-            remainingCourses,
-            eligible: true,
-          });
         } else {
           results.push({
             certificateName: certificate.name,
-            message: `You have already earned the "${certificate.name}" certificate.`,
+            message: `You are eligible for "${certificate.name}" certificate by choosing this subject. You have completed ${completedRequiredCourses.length} out of 6 required courses for the "${certificate.name}" certificate. Complete ${
+              6 - completedRequiredCourses.length
+            } more courses to earn it.`,
+            remainingCourses,
             eligible: true,
           });
         }
       } else {
-        results.push({
-          certificateName: certificate.name,
-          message: `This course does not contribute to the "${certificate.name}" certificate.`,
-          eligible: false,
-        });
+        // General logic for other certificates
+        if (isCurrentCourseEligible) {
+          if (
+            remainingCourses.length === 1 &&
+            remainingCourses[0] === course.course
+          ) {
+            results.push({
+              certificateName: certificate.name,
+              message: `You will earn the "${certificate.name}" certificate by completing this course.`,
+              eligible: true,
+            });
+          } else if (remainingCourses.length > 0) {
+            results.push({
+              certificateName: certificate.name,
+              message: `You are ${remainingCourses.length} course(s) away from earning the "${certificate.name}" certificate.`,
+              remainingCourses,
+              eligible: true,
+            });
+          } else {
+            results.push({
+              certificateName: certificate.name,
+              message: `You have already earned the "${certificate.name}" certificate.`,
+              eligible: true,
+            });
+          }
+        } else {
+          results.push({
+            certificateName: certificate.name,
+            message: `This course does not contribute to the "${certificate.name}" certificate.`,
+            eligible: false,
+          });
+        }
       }
     }
 
@@ -137,3 +173,4 @@ exports.checkCertificates = async (req, res) => {
     });
   }
 };
+

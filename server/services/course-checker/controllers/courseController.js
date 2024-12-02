@@ -870,7 +870,7 @@ exports.updateCourseCompletion = async (req, res) => {
     // Update course details
     if (grade) courseData.grade = grade;
     if (marks !== undefined) courseData.marks = marks;
-    if (totalMarks !== undefined) courseData.totalMarks = totalMarks;
+    if (totalMarks !== undefined) courseData.totalMarks = 100;
     courseData.status = "Completed";
 
     if (feedback) {
@@ -1001,6 +1001,7 @@ exports.registerCourses = async (req, res) => {
           });
           continue;
         }
+        console.log("courseToRegister", courseToRegister);
         const courseTitle = courseToRegister.title;
         // Stop registering if total credits have already reached 30
         if (updatedTotalCredits >= 30) {
@@ -1196,7 +1197,7 @@ exports.registerCourses = async (req, res) => {
           },
           { new: true }
         );
-
+console.log("updatedCourse", updatedCourse);
         if (!updatedCourse) {
           results.push({
             courseId,
