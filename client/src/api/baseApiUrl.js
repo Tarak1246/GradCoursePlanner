@@ -246,7 +246,7 @@ export const checkSubjectEligibility = async (
     const data = response.data;
 
     const hasEligibleCertificate = data?.certificateEligibility?.some(
-      (certification) => certification.eligible || data?.certificateEligibility
+      (certification) => certification.eligible
     );
 
     if (data.courseCheck && data.courseCheck.isValid === false) {
