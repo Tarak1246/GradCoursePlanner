@@ -326,10 +326,15 @@ const Subject = ({ courses, onBack, filters }) => {
           isOpen={dialogs.certificate}
           title="Certificate Progress"
           onClose={() => toggleDialog("certificate", false)}>
-          {dialogData.certificates?.map((cert, index) => (
+          {dialogData.certificates?.map((certification, index) => (
             <div key={index} className="p-3 bg-gray-50 rounded mb-2">
-              <h4 className="font-semibold">{cert.certificateName}</h4>
-              <p>{cert.message}</p>
+              <h4 className="font-semibold pb-4">
+                {certification.certificateName}
+              </h4>
+              <p>{certification.message}</p>
+              <p className="pt-4">
+                {certification?.remainingCourses?.join(", ") || ""}
+              </p>
             </div>
           ))}
         </Dialog>

@@ -245,6 +245,10 @@ export const checkSubjectEligibility = async (
 
     const data = response.data;
 
+    const hasEligibleCertificate = data?.certificateEligibility?.some(
+      (certification) => certification.eligible || data?.certificateEligibility
+    );
+
     if (data.courseCheck && data.courseCheck.isValid === false) {
       toggleDialog("error", true, { message: data.courseCheck.message });
       return false;
@@ -265,9 +269,9 @@ export const checkSubjectEligibility = async (
     } else if (
       data.courseCheck &&
       data.courseCheck.isValid &&
-      data.prerequisite &&
+      data.prerequisites &&
       data.prerequisites.eligible &&
-      data.certificateEligibility.eligible &&
+      hasEligibleCertificate &&
       data.certificateEligibility.length > 0
     ) {
       toggleDialog("certificate", true, {
