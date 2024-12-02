@@ -7,7 +7,7 @@ import {
   handleCourseClick,
 } from "../../api/baseApiUrl";
 
-import ModalContent from "../../Modal/ModalContent";
+import ModalContentViewCourses from "../../Modal/ModalContentViewCourses";
 
 const AreaOfInterest = () => {
   const [areasOfInterest, setAreasOfInterest] = useState({});
@@ -81,7 +81,7 @@ const AreaOfInterest = () => {
         </div>
       ))}
 
-      <ModalContent
+      <ModalContentViewCourses
         isShowModal={isModalOpen}
         closeModal={closeModal}
         subjectDetails={courseDetails}
