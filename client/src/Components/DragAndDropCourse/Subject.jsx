@@ -130,7 +130,7 @@ const Subject = ({ courses, onBack, filters }) => {
       return;
     }
 
-    if (isFirstSemesterResponse?.isFirstSemester && totalCredits > 6) {
+    if (isFirstSemesterResponse?.data?.isFirstSemester && totalCredits > 6) {
       showAlert(
         "You can only register for 6 credits in your first semester.",
         "destructive"
@@ -138,7 +138,7 @@ const Subject = ({ courses, onBack, filters }) => {
       return;
     }
 
-    if (!isFirstSemesterResponse?.isFirstSemester && totalCredits > 9) {
+    if (!isFirstSemesterResponse?.data?.isFirstSemester && totalCredits > 9) {
       showAlert(
         "You can only register for 9 credit for this semester.",
         "destructive"

@@ -180,7 +180,7 @@ export const fetchCourseRegistrationApi = async (
 
   try {
     const response = await axios.post(
-      `http://localhost:4000/api/courses/register-courses`,
+      `${baseApiUrl}/courses/register-courses`,
       {
         courseIds: selectedSubjects?.map((subject) => subject.id),
       },
@@ -210,7 +210,7 @@ export const checkIsFirstSemesterApi = async (
   const jwtToken = localStorage.getItem("jwtToken");
 
   const response = await axios.post(
-    ` http://localhost:4000/api/courses/is-first-semester`,
+    ` ${baseApiUrl}/courses/is-first-semester`,
     {
       semester: filters?.semester[0],
       year: filters?.year[0],
@@ -235,7 +235,7 @@ export const checkSubjectEligibility = async (
 
   try {
     const response = await axios.get(
-      `http://localhost:4000/api/subject-details/${subjectId}`,
+      `${baseApiUrl}/subject-details/${subjectId}`,
       {
         headers: {
           Authorization: `Bearer ${jwtToken}`,
