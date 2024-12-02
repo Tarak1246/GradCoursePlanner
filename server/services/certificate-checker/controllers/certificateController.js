@@ -111,7 +111,7 @@ exports.checkCertificates = async (req, res) => {
             certificateName: certificate.name,
             message: `You are eligible for "${certificate.name}" certificate by choosing this subject. You have completed ${completedRequiredCourses.length} out of 6 required courses for the "${certificate.name}" certificate. Complete ${
               6 - completedRequiredCourses.length
-            } more courses to earn it.`,
+            } courses to earn it.`,
             remainingCourses,
             eligible: true,
           });
