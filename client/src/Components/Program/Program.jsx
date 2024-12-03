@@ -122,6 +122,7 @@ function Program() {
   const [lowerLevelCredits, setLowerLevelCredits] = useState(0);
   const [totalCredits, setTotalCredits] = useState(0);
   const [marks, setMarks] = useState(0);
+  const [feedback, setFeedback] = useState("");
   const feedbackRef = useRef();
   // Fetch program data
 
@@ -187,6 +188,8 @@ function Program() {
           credits: item.credits,
           status: item.status,
           grade: item.grade,
+          marks: item.marks,
+          feedback: item.feedback,
         }));
 
         // Set the data with the mapped data
@@ -211,6 +214,9 @@ function Program() {
   const handleEdit = (row) => {
     setEditRow(row); // Store the row to be edited
     setUpdatedField(row.grade); // Initialize the input with the field value
+    setFeedback(row.feedback);
+    setMarks(row.marks);
+    
   };
 
   const handleSave = async () => {
@@ -224,7 +230,7 @@ function Program() {
     // Update `rawData` to maintain consistency
     const updatedRawData = rawData.map((item) =>
       item.crn === editRow.crn
-        ? { ...item, grade: updatedField, marks: marks, status: "Completed" }
+        ? { ...item, grade: updatedField, marks: marks,feedback: feedbackText, status: "Completed" }
         : item
     );
     setRawData(updatedRawData);
@@ -441,7 +447,19 @@ function Program() {
               <p>
                 <strong>Feedback:</strong>
               </p>
-              <input type="text" className="feedbacktext" ref={feedbackRef} />
+              <input
+                  type="text"
+                  className="feedbacktext"
+                  value={feedback}
+                  onChange={(e) => {
+                   setFeedback(e.target.value);
+                  }}
+                  placeholder="Enter feedback (max 250 words)"
+                  ref={feedbackRef}
+                />
+               
+
+              {/* <input type="text" className="feedbacktext" value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="Enter feedback" ref={feedbackRef} /> */}
             </div>
             <div className="modal-buttondiv">
               <button
