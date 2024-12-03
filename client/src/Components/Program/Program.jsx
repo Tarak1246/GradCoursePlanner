@@ -158,12 +158,12 @@ function Program() {
     try {
       console.warn("updating program data...");
       const response = await updateCourseGrade(courseData);
-      if (response.status === 200) {
+      if (response.status === 200 && response.data.statusCode === 200) {
         setGpa(response.data.gpa);
         console.log(response);
       } else {
         console.log(response);
-        alert("Failed to update the course grade. Please try again.");
+        alert(response.data.message+" Failed to update the course grade. Please try again.");
       }
     } catch (error) {
       console.error("Error fetching program data:", error);
@@ -277,7 +277,7 @@ function Program() {
         setData(updatedData);
         setRawData(updatedRawData);
       } else {
-        alert(response.data.message);
+        alert(response.data.message+" Failed to drop the course. Please try again.");
         console.warn(response);
       }
     } catch (error) {
@@ -368,7 +368,7 @@ function Program() {
           onDelete={handleDelete}
         />
       ) : (
-        <div className="tablediv">
+        <div className="tablediv" style={{textAlign:"center"}}>
           No data available. Please register the courses.
         </div>
       )}
@@ -377,7 +377,7 @@ function Program() {
         <div className="modal" style={{ display: "block" }}>
           <div className="modal-content">
             <div className="modal-headerdiv">
-              <p className="model-headtxt">Upadate your Grade</p>
+              <p className="model-headtxt">Update your Grade</p>
               <div>
                 <button className="modal-close-btn" onClick={handleClose}>
                   ×
@@ -493,10 +493,10 @@ function Program() {
               </div>
             </div>
             <div className="modal-buttondiv">
-              <button className="model-button" onClick={handleDeleteSave}>
+              <button className="model-button bg-green-800" onClick={handleDeleteSave}>
                 Delete
               </button>
-              <button className="model-button" onClick={handleClose}>
+              <button className="model-button bg-green-800" onClick={handleClose}>
                 Close
               </button>
             </div>
