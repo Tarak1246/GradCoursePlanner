@@ -258,12 +258,25 @@ export const checkSubjectEligibility = async (
       data.courseCheck &&
       data.courseCheck.isValid &&
       data.prerequisites &&
-      data.prerequisites.eligible === false
+      data.prerequisites.eligible === false &&
+      data.prerequisites.unmetPrerequisites.length > 0
     ) {
       toggleDialog("prereqConfirm", true, {
         message: `Have you completed these prerequisites: ${data.prerequisites.unmetPrerequisites.join(
           ", "
         )}?`,
+        subject: subjects.find((s) => s.id === subjectId),
+      });
+      return false;
+    } else if (
+      data.courseCheck &&
+      data.courseCheck.isValid &&
+      data.prerequisites &&
+      data.prerequisites.eligible === false &&
+      data.prerequisites.unmetPrerequisites.length === 0
+    ) {
+      toggleDialog("error", true, {
+        message: data.prerequisites.message,
         subject: subjects.find((s) => s.id === subjectId),
       });
       return false;
