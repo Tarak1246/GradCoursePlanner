@@ -114,7 +114,7 @@ const ModalContent = ({ isShowModal, closeModal, subjectDetails }) => {
     ),
     Feedback:
       feedback.length > 0 ? (
-        feedback?.feedback.map(({ name, feedback, semester, year, date }) => (
+        feedback?.map(({ name, feedback, semester, year, date }) => (
           <div className="mb-5">
             {renderSection("Name", name)}
             {renderSection("Feedback", feedback)}

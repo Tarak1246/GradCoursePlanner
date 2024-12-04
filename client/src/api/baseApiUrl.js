@@ -65,7 +65,7 @@ export const handleCourseClick = async (
     const authToken = localStorage.getItem("jwtToken");
     const response = await axios.post(
       `${baseApiUrl}/courses/filter-courses`,
-      { title: course },
+      course,
       {
         headers: {
           "Content-Type": "application/json",
@@ -265,7 +265,6 @@ export const checkSubjectEligibility = async (
           ", "
         )}?`,
         subject: subjects.find((s) => s.id === subjectId),
-        certificates: data.certificateEligibility,
       });
       return false;
     } else if (

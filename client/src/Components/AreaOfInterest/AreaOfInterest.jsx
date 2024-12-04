@@ -65,7 +65,7 @@ const AreaOfInterest = () => {
                         className="text-gray-800 hover:text-green-700 transition-colors duration-200 cursor-pointer block"
                         onClick={() =>
                           handleCourseClick(
-                            spiltArray.slice(2).join(" "),
+                            { title: spiltArray.slice(2).join(" ") },
                             setIsModalOpen,
                             setCourseDetails
                           )

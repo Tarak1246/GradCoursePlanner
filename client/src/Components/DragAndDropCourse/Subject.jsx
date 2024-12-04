@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "../Alert/alert";
-import axios from "axios";
+
 import {
   checkIsFirstSemesterApi,
   checkSubjectEligibility,
@@ -177,33 +177,48 @@ const Subject = ({ courses, onBack, filters }) => {
     return (
       <div className="space-y-2">
         {subjects?.length > 0 ? (
-          subjects.map((subject) => (
-            <div
-              key={subject.id}
-              onClick={() =>
-                onDragStart &&
-                handleCourseClick(
-                  subject.title,
-                  setShowDetailsDialog,
-                  setSubjectDetails
-                )
-              }
-              draggable={isDraggable}
-              onDragStart={(e) => onDragStart && onDragStart(e, subject)}
-              className="p-3 bg-gray-50 rounded flex justify-between items-center cursor-pointer hover:bg-gray-100">
-              <span>{`${subject.subject} ${subject.course} ${subject.title}`}</span>
-              {onDelete && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(subject);
-                  }}
-                  className="text-red-500 hover:text-red-700">
-                  <Trash2 size={20} />
-                </button>
-              )}
-            </div>
-          ))
+          subjects.map((subject) => {
+            let requestBody = Object.entries(filters).reduce(
+              (acc, [key, value]) => {
+                if (value.length > 0) {
+                  acc[key] = value;
+                }
+                return acc;
+              },
+              {}
+            );
+
+            // Add the title directly to the object
+            requestBody.title = subject.title;
+
+            return (
+              <div
+                key={subject.id}
+                onClick={() =>
+                  onDragStart &&
+                  handleCourseClick(
+                    requestBody,
+                    setShowDetailsDialog,
+                    setSubjectDetails
+                  )
+                }
+                draggable={isDraggable}
+                onDragStart={(e) => onDragStart && onDragStart(e, subject)}
+                className="p-3 bg-gray-50 rounded flex justify-between items-center cursor-pointer hover:bg-gray-100">
+                <span>{`${subject.subject} ${subject.course} ${subject.title}`}</span>
+                {onDelete && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(subject);
+                    }}
+                    className="text-red-500 hover:text-red-700">
+                    <Trash2 size={20} />
+                  </button>
+                )}
+              </div>
+            );
+          })
         ) : (
           <div className="text-gray-400 text-center py-8">
             No subjects available
