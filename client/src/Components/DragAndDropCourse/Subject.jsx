@@ -12,7 +12,7 @@ import ModalContent from "../../Modal/ModalContent";
 
 const Subject = ({ courses, onBack, filters }) => {
   const [subjects] = useState(
-    courses.map((course) => ({
+    courses?.map((course) => ({
       id: course._id,
       title: course.title,
       credits: course.credits,

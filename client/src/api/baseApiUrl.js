@@ -1,7 +1,7 @@
 // src/api/axios.js
 import axios from "axios";
 
-const baseApiUrl = "http://localhost:4000/api";
+const baseApiUrl = "http://23.21.158.246:4000/api";
 
 /**
  * @function loginUser
@@ -128,8 +128,10 @@ export const getFilterCoursesData = async (
       }
     );
 
-    setCourses(response?.data?.values);
-    setShowSubject(true);
+    if (response?.data?.values) {
+      setCourses(response?.data?.values);
+      setShowSubject(true);
+    } else setError(response?.data?.message);
   } catch (error) {
     setError(error.response?.data?.message || error.message);
   } finally {
