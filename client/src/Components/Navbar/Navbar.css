@@ -53,9 +53,9 @@ ul li {
 }
 
 .dropdown-menu {
-  position: absolute;
-  top: 120%;
-  left: 0%;
+  position: none;
+  top: auto;
+  left: auto;
   background: white;
   border: 1px solid #ddd;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -63,6 +63,10 @@ ul li {
   width: 100%;
   z-index: 1000;
   padding: 10px;
+}
+.dropdown:hover .dropdown-menu,
+.dropdown:focus-within .dropdown-menu {
+  display: block;
 }
 
 .dropdown-item {

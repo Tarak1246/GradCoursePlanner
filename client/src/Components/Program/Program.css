@@ -1,5 +1,6 @@
 .tablediv {
   margin: 50px;
+  min-height: 19vh;
 }
 
 .headtxt {

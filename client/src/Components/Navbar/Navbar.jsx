@@ -11,6 +11,7 @@ export const Navbar = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const { authLogout } = useAuth();
   const navigate = useNavigate();
+  const [isDropdownOpen, setDropdownOpen] = useState(false);
 
   const handleLogout = () => {
     authLogout(); // Reset the authentication state
@@ -18,7 +19,20 @@ export const Navbar = () => {
     navigate("/"); // Redirect to the login page
   };
   const [isOpen, setIsOpen] = useState(false);
+  const handleFocus = () => setDropdownOpen(true);
+  const handleMouseEnter = () => {
+    setDropdownOpen(true); // Open on hover
+  };
 
+  const handleMouseLeave = () => {
+    setDropdownOpen(false); // Close on mouse leave
+  };
+  const handleBlur = (e) => {
+    // Check if focus has left the dropdown container
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDropdownOpen(false);
+    }
+  };
   const toggleDropdown = () => {
     setIsOpen(!isOpen);
   };
@@ -45,9 +59,9 @@ export const Navbar = () => {
                 <button onClick={handleLogout}>Logout</button>
               </a>
             </li>
-            <li className="dropdown">
-              <a onClick={toggleDropdown}>
-                <button onClick={toggleDropdown} className="dropdown-btn">
+            <li className="dropdown" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} onBlur={handleBlur} onFocus={handleFocus} tabIndex={-1}>
+              <a >
+                <button className="dropdown-btn">
                   <img
                     src={profile_logo}
                     alt="Profile"
@@ -56,7 +70,7 @@ export const Navbar = () => {
                   {localStorage.getItem("loginUser")}
                 </button>
               </a>
-              {isOpen && (
+              {isDropdownOpen && (
                 <div className="dropdown-menu">
                   <div className="dropdown-item">
                     {localStorage.getItem("loginUser")}
@@ -73,58 +87,8 @@ export const Navbar = () => {
                 </div>
               )}
             </li>
-
-            {/* <li>
-                <button
-                  onClick={handleLogout}
-                >Logout</button>
-              </li> */}
           </ul>
-          {/* <ul className=''>
-            <li className="dropdown">
-                      <button onClick={toggleDropdown} className="dropdown-btn">
-                          <img
-                              src="https://via.placeholder.com/24"
-                              alt="Profile"
-                              className="profile-icon"
-                          />
-                          Name
-                      </button>
-                      {isOpen && (
-                          <div className="dropdown-menu">
-                              <div className="dropdown-item">
-                                  <strong>Email:</strong> user@example.com
-                              </div>
-                              <div className="dropdown-item">
-                                  <strong>Role:</strong> Admin
-                              </div>
-                              <div className="dropdown-item logout" onClick={() => alert('Logged out!')}>
-                                  Logout
-                              </div>
-                          </div>
-                      )}
-            </li>
-            </ul> */}
         </nav>
-        {/* <nav>
-    <ul class="sidebar">
-      <li onclick="hideSidebar()"><a href="#"><svg xmlns="http://www.w3.org/2000/svg" height="26" viewBox="0 96 960 960" width="26"><path d="m249 849-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"></path></svg></a></li>
-      <li><a href="#">Blog</a></li>
-      <li><a href="#">Products</a></li>
-      <li><a href="#">About</a></li>
-      <li><a href="#">Forum</a></li>
-      <li><a href="#">Login</a></li>
-    </ul>
-    <ul>
-      <li><a href="#">Coding2go</a></li>
-      <li class="hideOnMobile"><a href="#">Blog</a></li>
-      <li class="hideOnMobile"><a href="#">Products</a></li>
-      <li class="hideOnMobile"><a href="#">About</a></li>
-      <li class="hideOnMobile"><a href="#">Forum</a></li>
-      <li class="hideOnMobile"><a href="#">Login</a></li>
-      <li class="menu-button" onclick="showSidebar()"><a href="#"><svg xmlns="http://www.w3.org/2000/svg" height="26" viewBox="0 96 960 960" width="26"><path d="M120 816v-60h720v60H120Zm0-210v-60h720v60H120Zm0-210v-60h720v60H120Z"></path></svg></a></li>
-    </ul>
-  </nav> */}
       </div>
     </div>
   );

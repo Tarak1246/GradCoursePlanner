@@ -39,7 +39,7 @@ export const LoginSignup = ({ onLogin }) => {
         await handleSignup(data);
       }
     } catch (error) {
-      setErrorMessage(error?.message || "An unexpected error occurred.");
+      setErrorMessage(error?.message || "An unexpected error occurred. Please try again");
     }
   };
 
@@ -60,7 +60,7 @@ export const LoginSignup = ({ onLogin }) => {
         setErrorMessage(userData?.response?.data?.message);
       }
     } catch (error) {
-      setErrorMessage(error.message);
+      setErrorMessage(error.message+". Please try again");
     }
   };
 
@@ -68,18 +68,19 @@ export const LoginSignup = ({ onLogin }) => {
     data["role"] = "student";
     try {
       const signUpResponse = await signupUser(data);
-
-      if (signUpResponse?.statusText === "Created") {
+      console.log(signUpResponse);
+      if (signUpResponse.data.status === 201 || signUpResponse.data.status===409) {
         setErrorMessage(
-          `${signUpResponse?.data?.message}. Please Login with your credentials to redirected inside Home Page !!!`
+          `${signUpResponse?.data?.message}. Please Login with your credentials!!!`
         );
         setAction("login");
         reset();
-      } else {
+      }
+      else {
         setErrorMessage(signUpResponse?.response?.data?.message);
       }
     } catch (error) {
-      setErrorMessage(error?.message);
+      setErrorMessage(error?.message+". Please try again");
     }
   };
 
