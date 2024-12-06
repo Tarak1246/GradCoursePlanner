@@ -118,6 +118,7 @@ function Program() {
   const [cegCredits, setCegCredits] = useState(0);
   const [csCredits, setCsCredits] = useState(0);
   const [coreCredits, setCoreCredits] = useState(0);
+  const [prequisitesCredits, setPreqcredits] = useState(0);
   const [gpa, setGpa] = useState(0);
   const [lowerLevelCredits, setLowerLevelCredits] = useState(0);
   const [totalCredits, setTotalCredits] = useState(0);
@@ -145,6 +146,7 @@ function Program() {
         setGpa(userProgramData.data.gpa);
         setLowerLevelCredits(userProgramData.data.lowerLevelCredits);
         setTotalCredits(userProgramData.data.totalCredits);
+        setPreqcredits(userProgramData.data.defaultPrequisites);
       } else {
         console.error("Failed to fetch program data.");
       }
@@ -159,7 +161,7 @@ function Program() {
     try {
       console.warn("updating program data...");
       const response = await updateCourseGrade(courseData);
-      if (response.status === 200 && response.data.statusCode === 200) {
+      if (response.status === 200 && (response.data.statusCode === 200 || response.data.statusCode === 500)) {
         setGpa(response.data.gpa);
         console.log(response);
       } else {
@@ -327,6 +329,9 @@ function Program() {
           </p>
         </div>
         <div className="divscores">
+          <p>
+            <strong>Prequisite Credits</strong>:&nbsp;{prequisitesCredits}
+          </p>
           <p>
             <strong>CEG Credits</strong>:&nbsp;
             <span style={{ color: cegCredits > 12 ? "red" : "inherit" }}>
