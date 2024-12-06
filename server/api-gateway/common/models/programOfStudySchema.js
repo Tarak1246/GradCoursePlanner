@@ -35,30 +35,22 @@ const programOfStudySchema = new mongoose.Schema(
         status: {
           type: String,
           enum: ["Planned", "Completed", "Dropped"],
-          default: "Planned", // Initially set to 'Planned'
+          default: "Planned",
         },
         grade: {
           type: String,
-          enum: ["A", "B", "C", "D", "F", "P", "NP"], // Support various grading systems
+          enum: ["A", "B", "C", "D", "F", "P", "NP"],
           required: function () {
             return this.status === "Completed";
-          }, // Grade is only required for completed courses
+          },
         },
         marks: {
           type: Number,
           min: 0,
-          max: 1000,
-          required: function () {
-            return this.status === "Completed";
-          },
         },
         totalMarks: {
           type: Number,
           min: 0,
-          max: 1000,
-          required: function () {
-            return this.status === "Completed";
-          },
         },
         semesterTaken: {
           type: String,
@@ -130,9 +122,9 @@ const programOfStudySchema = new mongoose.Schema(
       type: Number,
       default: 0, // Tracks credits at the 6000 level
     },
-    independentStudyCredits: {
+    defaultPrequisites: {
       type: Number,
-      default: 0, // Tracks credits from independent study courses
+      default: 0, // Tracks credits from default prerequisites
     },
   },
   {
