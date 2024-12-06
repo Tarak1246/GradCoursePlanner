@@ -499,7 +499,6 @@ exports.addOrModifyCourses = async (req, res) => {
 exports.validateCourseSelection = async (req, res) => {
   const userId = req?.user?.id;
   const { courseId } = req.params;
-  console.log("cameeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
   try {
     if (!userId) {
       logger.warn("Missing user ID in JWT token");
@@ -550,7 +549,7 @@ exports.validateCourseSelection = async (req, res) => {
         },
       });
     }
-    console.log("course", course);
+
     // Handle first-time registration
     if (!programOfStudy) {
       logger.info(`First-time registration for user ID: ${userId}`);
@@ -563,21 +562,20 @@ exports.validateCourseSelection = async (req, res) => {
         },
       });
     }
-    console.log("programOfStudy", programOfStudy);
+
     const plannedAndCompletedCourses =
       programOfStudy?.courses.filter(
         (c) => c.status === "Completed" || c.status === "Planned"
       ) || [];
-    console.log("plannedAndCompletedCourses", plannedAndCompletedCourses);
-    // Validate if the course ID is already registered
+
     const isAlreadyRegistered = plannedAndCompletedCourses.some(
       (c) =>
         c.course &&
         c.subject &&
         c.course.toString() === course.toString() &&
-        c.subject.toString() === course.subject
+        c.subject.toString() === course.subject.toString()
     );
-    console.log("isAlreadyRegistered", isAlreadyRegistered);
+
     if (isAlreadyRegistered) {
       logger.info(
         `Course already registered for user ID: ${userId}, course ID: ${courseId}`
@@ -592,9 +590,27 @@ exports.validateCourseSelection = async (req, res) => {
       });
     }
 
+    // Separate courses into valid and non-valid ranges
+    const { validRangeCourses, nonValidRangeCourses } =
+    plannedAndCompletedCourses.reduce(
+      (acc, c) => {
+        const courseNumber = parseInt(c.course);
+        if (
+          !isNaN(courseNumber) &&
+          (courseNumber >= 6000 && courseNumber <= 8999)
+        ) {
+          acc.validRangeCourses.push(c);
+        } else {
+          acc.nonValidRangeCourses.push(c);
+        }
+        return acc;
+      },
+      { validRangeCourses: [], nonValidRangeCourses: [] }
+    );
+
     // Calculate total credits and specific limits
     const { totalCredits, cegCredits, csce6000Credits, coreCourseCount } =
-      plannedAndCompletedCourses.reduce(
+    validRangeCourses.reduce(
         (acc, c) => {
           acc.totalCredits += parseInt(c.credits);
           if (c.subject === "CEG") {
@@ -618,12 +634,7 @@ exports.validateCourseSelection = async (req, res) => {
           coreCourseCount: 0,
         }
       );
-    console.log("totalCredits", totalCredits, typeof totalCredits);
-    console.log("cegCredits", cegCredits, typeof cegCredits);
-    console.log("csce6000Credits", csce6000Credits, typeof csce6000Credits);
-    console.log("coreCourseCount", coreCourseCount, typeof coreCourseCount);
-    console.log("course", course);
-    console.log(totalCredits >= 30);
+
     // Check if total credits exceed graduation limit
     if (totalCredits >= 30) {
       logger.info(
@@ -640,7 +651,7 @@ exports.validateCourseSelection = async (req, res) => {
     }
 
     // Validate CEG Credit Limit
-    if (course.subject == "CEG" && cegCredits + parseInt(course.credits) > 12) {
+    if ((course.subject == "CEG") && ((cegCredits + parseInt(course.credits)) > 12)) {
       logger.info(`CEG credit limit exceeded for user ID: ${userId}`);
       return res.json({
         statusCode: 200,
@@ -654,8 +665,8 @@ exports.validateCourseSelection = async (req, res) => {
 
     // Validate CSCE 6000-level course limit
     if (
-      course.course.startsWith("6") &&
-      csce6000Credits + parseInt(course.credits) > 12
+      (course.course.startsWith("6")) &&
+      ((csce6000Credits + parseInt(course.credits)) > 12)
     ) {
       logger.info(`6000-Level credit limit exceeded for user ID: ${userId}`);
       return res.json({
@@ -673,7 +684,7 @@ exports.validateCourseSelection = async (req, res) => {
       const isCoreCourse = ["7200", "7370", "7100", "7140"].includes(
         course.course
       );
-      if (coreCourseCount === 0 && !isCoreCourse) {
+      if ((coreCourseCount === 0) && (!isCoreCourse)) {
         logger.info(
           `Credits >= 24. Core course required for user ID: ${userId}`
         );
@@ -689,9 +700,9 @@ exports.validateCourseSelection = async (req, res) => {
       }
 
       if (
-        coreCourseCount === 1 &&
-        !isCoreCourse &&
-        totalCredits + parseInt(course.credits) > 27
+        (coreCourseCount === 1) &&
+        (!isCoreCourse) &&
+        (totalCredits + parseInt(course.credits) > 27)
       ) {
         logger.info(
           `Credits >= 27. Additional core course required for user ID: ${userId}`
@@ -785,8 +796,8 @@ exports.getEnumValues = async (req, res) => {
 };
 
 exports.updateCourseCompletion = async (req, res) => {
+  const userId = req?.user?.id;
   try {
-    const userId = req?.user?.id;
     const {
       courseId,
       course,
@@ -798,14 +809,14 @@ exports.updateCourseCompletion = async (req, res) => {
       feedback,
     } = req.body;
 
-    if (!userId || !courseId || !course || !title || !subject) {
+    if (!userId || !courseId || !grade || !course || !title || !subject) {
       logger.warn(
         "Invalid input: userId, courseId, course, subject, and title are required"
       );
       return res.json({
         statusCode: 400,
         status: "failure",
-        message: "userId, courseId, course, and title are required",
+        message: "Grade is required",
       });
     }
 
@@ -870,10 +881,10 @@ exports.updateCourseCompletion = async (req, res) => {
     // Update course details
     if (grade) courseData.grade = grade;
     if (marks !== undefined) courseData.marks = marks;
-    if (totalMarks !== undefined) courseData.totalMarks = 100;
+    if (totalMarks !== undefined) courseData.totalMarks = totalMarks;
     courseData.status = "Completed";
 
-    if (feedback) {
+    // if (feedback) {
       await Feedback.findOneAndUpdate(
         { userId, course, subject },
         {
@@ -889,7 +900,7 @@ exports.updateCourseCompletion = async (req, res) => {
       logger.info(
         `Feedback updated for userId: ${userId}, course: ${course}, subject: ${subject}`
       );
-    }
+    // }
 
     // Recalculate GPA for completed courses
     const completedCourses = programOfStudy.courses.filter(
@@ -926,6 +937,7 @@ exports.updateCourseCompletion = async (req, res) => {
       gpa: programOfStudy.gpa,
     });
   } catch (error) {
+    console.log(error);
     logger.error(`Error updating course completion for userId: ${userId}`, {
       error: error.message,
     });
@@ -966,7 +978,7 @@ exports.registerCourses = async (req, res) => {
           cegCredits: 0,
           upperLevelCredits: 0,
           lowerLevelCredits: 0,
-          independentStudyCredits: 0,
+          defaultPrequisites: 0,
           firstSemester: {
             semester: "",
             year: "",
@@ -985,6 +997,7 @@ exports.registerCourses = async (req, res) => {
     let updatedCegCredits = programOfStudy.cegCredits;
     let updatedUpperLevelCredits = programOfStudy.upperLevelCredits;
     let updatedLowerLevelCredits = programOfStudy.lowerLevelCredits;
+    let updatedDefaultPrequisites = programOfStudy.defaultPrequisites;
 
     for (const courseId of courseIds) {
       try {
@@ -1001,8 +1014,13 @@ exports.registerCourses = async (req, res) => {
           });
           continue;
         }
-        console.log("courseToRegister", courseToRegister);
-        const courseTitle = courseToRegister.title;
+
+        const courseTitle = courseToRegister.title.toString();
+        const courseNumber = parseInt(courseToRegister.course, 10);
+        // Check if the course number falls in the valid range
+        const isValidCourseRange =
+        !isNaN(courseNumber) && courseNumber >= 6000 && courseNumber <= 8999;
+
         // Stop registering if total credits have already reached 30
         if (updatedTotalCredits >= 30) {
           results.push({
@@ -1028,7 +1046,7 @@ exports.registerCourses = async (req, res) => {
         if (
           programOfStudy.courses.some(
             (c) =>
-              c.course.toString() === courseToRegister.course &&
+              c.course.toString() === courseToRegister.course.toString() &&
               c.status !== "Dropped"
           )
         ) {
@@ -1197,7 +1215,7 @@ exports.registerCourses = async (req, res) => {
           },
           { new: true }
         );
-console.log("updatedCourse", updatedCourse);
+
         if (!updatedCourse) {
           results.push({
             courseId,
@@ -1210,7 +1228,11 @@ console.log("updatedCourse", updatedCourse);
 
         // Update program of study details
         const credits = parseInt(courseToRegister.credits, 10) || 0;
-        updatedTotalCredits += credits;
+        if (isValidCourseRange) {
+          updatedTotalCredits += credits;
+        }else{
+          updatedDefaultPrequisites += credits;
+        }
         updatedCoreCredits += coreCourses.includes(courseToRegister.course)
           ? credits
           : 0;
@@ -1248,6 +1270,7 @@ console.log("updatedCourse", updatedCourse);
         programOfStudy.lowerLevelCredits = updatedLowerLevelCredits;
         programOfStudy.completionStatus =
           updatedTotalCredits >= 30 ? "Completed" : "In Progress";
+        programOfStudy.defaultPrequisites = updatedDefaultPrequisites;
 
         await programOfStudy.save();
         console.log("totalCredits", updatedTotalCredits);
