@@ -73,7 +73,7 @@ exports.checkPrerequisites = async (req, res) => {
           plannedYear > currentYear ||
           (plannedYear === currentYear && plannedSemester > currentSemester)
         );
-      });
+      }).map((planned) => planned.course); 
 
     // Build response
     const response = {
