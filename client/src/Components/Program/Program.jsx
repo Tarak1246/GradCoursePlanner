@@ -252,6 +252,7 @@ function Program() {
     try {
       // Call `updateGrade` with formatted data
       await updateGrade(courseData);
+      getProgramdata();
     } catch (error) {
       console.error("Error updating grade:", error);
     }
